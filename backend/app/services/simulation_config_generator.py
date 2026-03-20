@@ -1,13 +1,13 @@
 """
-模拟配置智能生成器
-使用LLM根据模拟需求、文档内容、图谱信息自动生成细致的模拟参数
-实现全程自动化，无需人工设置参数
+Simulation Configuration Intelligent Generator
+Uses an LLM to automatically generate detailed simulation parameters based on simulation requirements, document content, and knowledge graph information.
+Achieves end-to-end automation with no manual parameter setup required.
 
-采用分步生成策略，避免一次性生成过长内容导致失败：
-1. 生成时间配置
-2. 生成事件配置
-3. 分批生成Agent配置
-4. 生成平台配置
+Uses a step-by-step generation strategy to avoid failures from generating excessively long content at once:
+1. Generate time configuration
+2. Generate event configuration
+3. Generate agent configurations in batches
+4. Generate platform configuration
 """
 
 import json
@@ -390,18 +390,18 @@ class SimulationConfigGenerator:
         
         # 构建上下文
         context_parts = [
-            f"## 模拟需求\n{simulation_requirement}",
-            f"\n## 实体信息 ({len(entities)}个)\n{entity_summary}",
+            f"## Simulation Requirement\n{simulation_requirement}",
+            f"\n## Entity Information ({len(entities)} total)\n{entity_summary}",
         ]
-        
+
         current_length = sum(len(p) for p in context_parts)
-        remaining_length = self.MAX_CONTEXT_LENGTH - current_length - 500  # 留500字符余量
-        
+        remaining_length = self.MAX_CONTEXT_LENGTH - current_length - 500  # reserve 500 chars of headroom
+
         if remaining_length > 0 and document_text:
             doc_text = document_text[:remaining_length]
             if len(document_text) > remaining_length:
-                doc_text += "\n...(文档已截断)"
-            context_parts.append(f"\n## 原始文档内容\n{doc_text}")
+                doc_text += "\n...(document truncated)"
+            context_parts.append(f"\n## Original Document Content\n{doc_text}")
         
         return "\n".join(context_parts)
     
@@ -418,7 +418,7 @@ class SimulationConfigGenerator:
             by_type[t].append(e)
         
         for entity_type, type_entities in by_type.items():
-            lines.append(f"\n### {entity_type} ({len(type_entities)}个)")
+            lines.append(f"\n### {entity_type} ({len(type_entities)} total)")
             # 使用配置的显示数量和摘要长度
             display_count = self.ENTITIES_PER_TYPE_DISPLAY
             summary_len = self.ENTITY_SUMMARY_LENGTH
@@ -426,7 +426,7 @@ class SimulationConfigGenerator:
                 summary_preview = (e.summary[:summary_len] + "...") if len(e.summary) > summary_len else e.summary
                 lines.append(f"- {e.name}: {summary_preview}")
             if len(type_entities) > display_count:
-                lines.append(f"  ... 还有 {len(type_entities) - display_count} 个")
+                lines.append(f"  ... and {len(type_entities) - display_count} more")
         
         return "\n".join(lines)
     
@@ -539,28 +539,28 @@ class SimulationConfigGenerator:
         # 计算最大允许值（80%的agent数）
         max_agents_allowed = max(1, int(num_entities * 0.9))
         
-        prompt = f"""基于以下模拟需求，生成时间模拟配置。
+        prompt = f"""Based on the following simulation requirements, generate the time simulation configuration.
 
 {context_truncated}
 
-## 任务
-请生成时间配置JSON。
+## Task
+Please generate the time configuration JSON.
 
-### 基本原则（仅供参考，需根据具体事件和参与群体灵活调整）：
-- 用户群体为中国人，需符合北京时间作息习惯
-- 凌晨0-5点几乎无人活动（活跃度系数0.05）
-- 早上6-8点逐渐活跃（活跃度系数0.4）
-- 工作时间9-18点中等活跃（活跃度系数0.7）
-- 晚间19-22点是高峰期（活跃度系数1.5）
-- 23点后活跃度下降（活跃度系数0.5）
-- 一般规律：凌晨低活跃、早间渐增、工作时段中等、晚间高峰
-- **重要**：以下示例值仅供参考，你需要根据事件性质、参与群体特点来调整具体时段
-  - 例如：学生群体高峰可能是21-23点；媒体全天活跃；官方机构只在工作时间
-  - 例如：突发热点可能导致深夜也有讨论，off_peak_hours 可适当缩短
+### Basic principles (for reference only — adjust flexibly based on the specific event and participant groups):
+- The user population is Chinese; schedules must conform to Beijing time habits
+- Almost no activity from 0:00–5:00 AM (activity multiplier: 0.05)
+- Gradually becoming active from 6:00–8:00 AM (activity multiplier: 0.4)
+- Moderate activity during working hours 9:00–18:00 (activity multiplier: 0.7)
+- Peak period in the evening 19:00–22:00 (activity multiplier: 1.5)
+- Activity decreases after 23:00 (activity multiplier: 0.5)
+- General pattern: low activity in the early morning, gradual increase in the morning, moderate during working hours, peak in the evening
+- **Important**: The example values below are for reference only. You must adjust specific time windows based on the nature of the event and the characteristics of the participant groups.
+  - For example: the student group peak may be 21:00–23:00; media is active all day; official institutions are only active during working hours
+  - For example: a breaking hot topic may generate discussion late at night, so off_peak_hours can be shortened accordingly
 
-### 返回JSON格式（不要markdown）
+### Return JSON format (no markdown)
 
-示例：
+Example:
 {{
     "total_simulation_hours": 72,
     "minutes_per_round": 60,
@@ -570,21 +570,21 @@ class SimulationConfigGenerator:
     "off_peak_hours": [0, 1, 2, 3, 4, 5],
     "morning_hours": [6, 7, 8],
     "work_hours": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-    "reasoning": "针对该事件的时间配置说明"
+    "reasoning": "Explanation of the time configuration for this event"
 }}
 
-字段说明：
-- total_simulation_hours (int): 模拟总时长，24-168小时，突发事件短、持续话题长
-- minutes_per_round (int): 每轮时长，30-120分钟，建议60分钟
-- agents_per_hour_min (int): 每小时最少激活Agent数（取值范围: 1-{max_agents_allowed}）
-- agents_per_hour_max (int): 每小时最多激活Agent数（取值范围: 1-{max_agents_allowed}）
-- peak_hours (int数组): 高峰时段，根据事件参与群体调整
-- off_peak_hours (int数组): 低谷时段，通常深夜凌晨
-- morning_hours (int数组): 早间时段
-- work_hours (int数组): 工作时段
-- reasoning (string): 简要说明为什么这样配置"""
+Field descriptions:
+- total_simulation_hours (int): Total simulation duration, 24–168 hours; shorter for breaking events, longer for sustained topics
+- minutes_per_round (int): Duration per round, 30–120 minutes; 60 minutes recommended
+- agents_per_hour_min (int): Minimum number of agents activated per hour (valid range: 1–{max_agents_allowed})
+- agents_per_hour_max (int): Maximum number of agents activated per hour (valid range: 1–{max_agents_allowed})
+- peak_hours (int array): Peak time periods; adjust based on event participant groups
+- off_peak_hours (int array): Off-peak periods, typically late night / early morning
+- morning_hours (int array): Morning time periods
+- work_hours (int array): Working-hours time periods
+- reasoning (string): Brief explanation of why this configuration was chosen"""
 
-        system_prompt = "你是社交媒体模拟专家。返回纯JSON格式，时间配置需符合中国人作息习惯。"
+        system_prompt = "You are a social media simulation expert. Return pure JSON format. The time configuration must conform to Chinese daily schedule habits."
         
         try:
             return self._call_llm_with_retry(prompt, system_prompt)
@@ -603,7 +603,7 @@ class SimulationConfigGenerator:
             "off_peak_hours": [0, 1, 2, 3, 4, 5],
             "morning_hours": [6, 7, 8],
             "work_hours": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-            "reasoning": "使用默认中国人作息配置（每轮1小时）"
+            "reasoning": "Using default Chinese daily schedule configuration (1 hour per round)"
         }
     
     def _parse_time_config(self, result: Dict[str, Any], num_entities: int) -> TimeSimulationConfig:
@@ -671,36 +671,36 @@ class SimulationConfigGenerator:
         # 使用配置的上下文截断长度
         context_truncated = context[:self.EVENT_CONFIG_CONTEXT_LENGTH]
         
-        prompt = f"""基于以下模拟需求，生成事件配置。
+        prompt = f"""Based on the following simulation requirements, generate the event configuration.
 
-模拟需求: {simulation_requirement}
+Simulation requirement: {simulation_requirement}
 
 {context_truncated}
 
-## 可用实体类型及示例
+## Available Entity Types and Examples
 {type_info}
 
-## 任务
-请生成事件配置JSON：
-- 提取热点话题关键词
-- 描述舆论发展方向
-- 设计初始帖子内容，**每个帖子必须指定 poster_type（发布者类型）**
+## Task
+Please generate the event configuration JSON:
+- Extract trending topic keywords
+- Describe the direction of public opinion development
+- Design initial post content — **each post must specify a poster_type (poster entity type)**
 
-**重要**: poster_type 必须从上面的"可用实体类型"中选择，这样初始帖子才能分配给合适的 Agent 发布。
-例如：官方声明应由 Official/University 类型发布，新闻由 MediaOutlet 发布，学生观点由 Student 发布。
+**Important**: poster_type must be chosen from the "Available Entity Types" listed above, so that initial posts can be assigned to the appropriate agent for publishing.
+For example: official statements should be posted by the Official/University type, news by MediaOutlet, student opinions by Student.
 
-返回JSON格式（不要markdown）：
+Return JSON format (no markdown):
 {{
-    "hot_topics": ["关键词1", "关键词2", ...],
-    "narrative_direction": "<舆论发展方向描述>",
+    "hot_topics": ["keyword1", "keyword2", ...],
+    "narrative_direction": "<description of public opinion development direction>",
     "initial_posts": [
-        {{"content": "帖子内容", "poster_type": "实体类型（必须从可用类型中选择）"}},
+        {{"content": "post content", "poster_type": "entity type (must be chosen from available types)"}},
         ...
     ],
-    "reasoning": "<简要说明>"
+    "reasoning": "<brief explanation>"
 }}"""
 
-        system_prompt = "你是舆论分析专家。返回纯JSON格式。注意 poster_type 必须精确匹配可用实体类型。"
+        system_prompt = "You are a public opinion analysis expert. Return pure JSON format. Note that poster_type must exactly match one of the available entity types."
         
         try:
             return self._call_llm_with_retry(prompt, system_prompt)
@@ -710,7 +710,7 @@ class SimulationConfigGenerator:
                 "hot_topics": [],
                 "narrative_direction": "",
                 "initial_posts": [],
-                "reasoning": "使用默认配置"
+                "reasoning": "Using default configuration"
             }
     
     def _parse_event_config(self, result: Dict[str, Any]) -> EventConfig:
@@ -827,43 +827,43 @@ class SimulationConfigGenerator:
                 "summary": e.summary[:summary_len] if e.summary else ""
             })
         
-        prompt = f"""基于以下信息，为每个实体生成社交媒体活动配置。
+        prompt = f"""Based on the following information, generate social media activity configurations for each entity.
 
-模拟需求: {simulation_requirement}
+Simulation requirement: {simulation_requirement}
 
-## 实体列表
+## Entity List
 ```json
 {json.dumps(entity_list, ensure_ascii=False, indent=2)}
 ```
 
-## 任务
-为每个实体生成活动配置，注意：
-- **时间符合中国人作息**：凌晨0-5点几乎不活动，晚间19-22点最活跃
-- **官方机构**（University/GovernmentAgency）：活跃度低(0.1-0.3)，工作时间(9-17)活动，响应慢(60-240分钟)，影响力高(2.5-3.0)
-- **媒体**（MediaOutlet）：活跃度中(0.4-0.6)，全天活动(8-23)，响应快(5-30分钟)，影响力高(2.0-2.5)
-- **个人**（Student/Person/Alumni）：活跃度高(0.6-0.9)，主要晚间活动(18-23)，响应快(1-15分钟)，影响力低(0.8-1.2)
-- **公众人物/专家**：活跃度中(0.4-0.6)，影响力中高(1.5-2.0)
+## Task
+Generate an activity configuration for each entity. Notes:
+- **Schedules must conform to Chinese daily habits**: almost no activity from 0:00–5:00 AM, most active from 19:00–22:00 in the evening
+- **Official institutions** (University/GovernmentAgency): low activity (0.1–0.3), active during working hours (9–17), slow response (60–240 min), high influence (2.5–3.0)
+- **Media** (MediaOutlet): moderate activity (0.4–0.6), active all day (8–23), fast response (5–30 min), high influence (2.0–2.5)
+- **Individuals** (Student/Person/Alumni): high activity (0.6–0.9), mainly active in the evening (18–23), fast response (1–15 min), low influence (0.8–1.2)
+- **Public figures / experts**: moderate activity (0.4–0.6), moderate-to-high influence (1.5–2.0)
 
-返回JSON格式（不要markdown）：
+Return JSON format (no markdown):
 {{
     "agent_configs": [
         {{
-            "agent_id": <必须与输入一致>,
-            "activity_level": <0.0-1.0>,
-            "posts_per_hour": <发帖频率>,
-            "comments_per_hour": <评论频率>,
-            "active_hours": [<活跃小时列表，考虑中国人作息>],
-            "response_delay_min": <最小响应延迟分钟>,
-            "response_delay_max": <最大响应延迟分钟>,
-            "sentiment_bias": <-1.0到1.0>,
+            "agent_id": <must match the input value>,
+            "activity_level": <0.0–1.0>,
+            "posts_per_hour": <posting frequency>,
+            "comments_per_hour": <comment frequency>,
+            "active_hours": [<list of active hours, accounting for Chinese daily schedule>],
+            "response_delay_min": <minimum response delay in minutes>,
+            "response_delay_max": <maximum response delay in minutes>,
+            "sentiment_bias": <-1.0 to 1.0>,
             "stance": "<supportive/opposing/neutral/observer>",
-            "influence_weight": <影响力权重>
+            "influence_weight": <influence weight>
         }},
         ...
     ]
 }}"""
 
-        system_prompt = "你是社交媒体行为分析专家。返回纯JSON，配置需符合中国人作息习惯。"
+        system_prompt = "You are a social media behavior analysis expert. Return pure JSON. Configurations must conform to Chinese daily schedule habits."
         
         try:
             result = self._call_llm_with_retry(prompt, system_prompt)

@@ -1,6 +1,6 @@
 """
-Zep实体读取与过滤服务
-从Zep图谱中读取节点，筛选出符合预定义实体类型的节点
+Zep entity reading and filtering service
+Reads nodes from the Zep graph and filters out nodes that match predefined entity types
 """
 
 import time
@@ -15,21 +15,21 @@ from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 
 logger = get_logger('mirofish.zep_entity_reader')
 
-# 用于泛型返回类型
+# Used for generic return type
 T = TypeVar('T')
 
 
 @dataclass
 class EntityNode:
-    """实体节点数据结构"""
+    """Entity node data structure"""
     uuid: str
     name: str
     labels: List[str]
     summary: str
     attributes: Dict[str, Any]
-    # 相关的边信息
+    # Related edge information
     related_edges: List[Dict[str, Any]] = field(default_factory=list)
-    # 相关的其他节点信息
+    # Related node information
     related_nodes: List[Dict[str, Any]] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -44,7 +44,7 @@ class EntityNode:
         }
     
     def get_entity_type(self) -> Optional[str]:
-        """获取实体类型（排除默认的Entity标签）"""
+        """Get entity type (excluding the default Entity label)"""
         for label in self.labels:
             if label not in ["Entity", "Node"]:
                 return label
@@ -53,7 +53,7 @@ class EntityNode:
 
 @dataclass
 class FilteredEntities:
-    """过滤后的实体集合"""
+    """Collection of filtered entities"""
     entities: List[EntityNode]
     entity_types: Set[str]
     total_count: int
@@ -70,12 +70,12 @@ class FilteredEntities:
 
 class ZepEntityReader:
     """
-    Zep实体读取与过滤服务
-    
-    主要功能：
-    1. 从Zep图谱读取所有节点
-    2. 筛选出符合预定义实体类型的节点（Labels不只是Entity的节点）
-    3. 获取每个实体的相关边和关联节点信息
+    Zep entity reading and filtering service
+
+    Main features:
+    1. Read all nodes from the Zep graph
+    2. Filter nodes that match predefined entity types (nodes whose Labels are not only "Entity")
+    3. Retrieve related edge and associated node information for each entity
     """
     
     def __init__(self, api_key: Optional[str] = None):
@@ -86,23 +86,23 @@ class ZepEntityReader:
         self.client = Zep(api_key=self.api_key)
     
     def _call_with_retry(
-        self, 
-        func: Callable[[], T], 
+        self,
+        func: Callable[[], T],
         operation_name: str,
         max_retries: int = 3,
         initial_delay: float = 2.0
     ) -> T:
         """
-        带重试机制的Zep API调用
-        
+        Zep API call with retry mechanism
+
         Args:
-            func: 要执行的函数（无参数的lambda或callable）
-            operation_name: 操作名称，用于日志
-            max_retries: 最大重试次数（默认3次，即最多尝试3次）
-            initial_delay: 初始延迟秒数
-            
+            func: Function to execute (a lambda or callable with no arguments)
+            operation_name: Operation name, used for logging
+            max_retries: Maximum number of retries (default 3, i.e., up to 3 attempts)
+            initial_delay: Initial delay in seconds
+
         Returns:
-            API调用结果
+            API call result
         """
         last_exception = None
         delay = initial_delay
@@ -118,7 +118,7 @@ class ZepEntityReader:
                         f"retrying in {delay:.1f}s..."
                     )
                     time.sleep(delay)
-                    delay *= 2  # 指数退避
+                    delay *= 2  # exponential backoff
                 else:
                     logger.error(f"Zep {operation_name} failed after {max_retries} attempts: {str(e)}")
         
@@ -126,13 +126,13 @@ class ZepEntityReader:
     
     def get_all_nodes(self, graph_id: str) -> List[Dict[str, Any]]:
         """
-        获取图谱的所有节点（分页获取）
+        Get all nodes in the graph (paginated)
 
         Args:
-            graph_id: 图谱ID
+            graph_id: Graph ID
 
         Returns:
-            节点列表
+            List of nodes
         """
         logger.info(f"Fetching all nodes for graph {graph_id}...")
 
@@ -153,13 +153,13 @@ class ZepEntityReader:
 
     def get_all_edges(self, graph_id: str) -> List[Dict[str, Any]]:
         """
-        获取图谱的所有边（分页获取）
+        Get all edges in the graph (paginated)
 
         Args:
-            graph_id: 图谱ID
+            graph_id: Graph ID
 
         Returns:
-            边列表
+            List of edges
         """
         logger.info(f"Fetching all edges for graph {graph_id}...")
 
@@ -181,19 +181,19 @@ class ZepEntityReader:
     
     def get_node_edges(self, node_uuid: str) -> List[Dict[str, Any]]:
         """
-        获取指定节点的所有相关边（带重试机制）
-        
+        Get all related edges for a given node (with retry mechanism)
+
         Args:
-            node_uuid: 节点UUID
-            
+            node_uuid: Node UUID
+
         Returns:
-            边列表
+            List of edges
         """
         try:
-            # 使用重试机制调用Zep API
+            # Call Zep API with retry mechanism
             edges = self._call_with_retry(
                 func=lambda: self.client.graph.node.get_entity_edges(node_uuid=node_uuid),
-                operation_name=f"获取节点边(node={node_uuid[:8]}...)"
+                operation_name=f"get node edges (node={node_uuid[:8]}...)"
             )
             
             edges_data = []
@@ -213,53 +213,53 @@ class ZepEntityReader:
             return []
     
     def filter_defined_entities(
-        self, 
+        self,
         graph_id: str,
         defined_entity_types: Optional[List[str]] = None,
         enrich_with_edges: bool = True
     ) -> FilteredEntities:
         """
-        筛选出符合预定义实体类型的节点
-        
-        筛选逻辑：
-        - 如果节点的Labels只有一个"Entity"，说明这个实体不符合我们预定义的类型，跳过
-        - 如果节点的Labels包含除"Entity"和"Node"之外的标签，说明符合预定义类型，保留
-        
+        Filter nodes that match predefined entity types
+
+        Filtering logic:
+        - If a node's Labels contain only "Entity", it does not match our predefined types and is skipped
+        - If a node's Labels include labels other than "Entity" and "Node", it matches a predefined type and is kept
+
         Args:
-            graph_id: 图谱ID
-            defined_entity_types: 预定义的实体类型列表（可选，如果提供则只保留这些类型）
-            enrich_with_edges: 是否获取每个实体的相关边信息
-            
+            graph_id: Graph ID
+            defined_entity_types: List of predefined entity types (optional; if provided, only these types are kept)
+            enrich_with_edges: Whether to retrieve related edge information for each entity
+
         Returns:
-            FilteredEntities: 过滤后的实体集合
+            FilteredEntities: Collection of filtered entities
         """
         logger.info(f"Starting entity filtering for graph {graph_id}...")
         
-        # 获取所有节点
+        # Get all nodes
         all_nodes = self.get_all_nodes(graph_id)
         total_count = len(all_nodes)
-        
-        # 获取所有边（用于后续关联查找）
+
+        # Get all edges (used for subsequent association lookups)
         all_edges = self.get_all_edges(graph_id) if enrich_with_edges else []
-        
-        # 构建节点UUID到节点数据的映射
+
+        # Build a mapping from node UUID to node data
         node_map = {n["uuid"]: n for n in all_nodes}
-        
-        # 筛选符合条件的实体
+
+        # Filter entities that match the criteria
         filtered_entities = []
         entity_types_found = set()
-        
+
         for node in all_nodes:
             labels = node.get("labels", [])
-            
-            # 筛选逻辑：Labels必须包含除"Entity"和"Node"之外的标签
+
+            # Filtering logic: Labels must include labels other than "Entity" and "Node"
             custom_labels = [l for l in labels if l not in ["Entity", "Node"]]
-            
+
             if not custom_labels:
-                # 只有默认标签，跳过
+                # Only default labels — skip
                 continue
-            
-            # 如果指定了预定义类型，检查是否匹配
+
+            # If predefined types are specified, check for a match
             if defined_entity_types:
                 matching_labels = [l for l in custom_labels if l in defined_entity_types]
                 if not matching_labels:
@@ -270,7 +270,7 @@ class ZepEntityReader:
             
             entity_types_found.add(entity_type)
             
-            # 创建实体节点对象
+            # Create entity node object
             entity = EntityNode(
                 uuid=node["uuid"],
                 name=node["name"],
@@ -279,7 +279,7 @@ class ZepEntityReader:
                 attributes=node["attributes"],
             )
             
-            # 获取相关边和节点
+            # Get related edges and nodes
             if enrich_with_edges:
                 related_edges = []
                 related_node_uuids = set()
@@ -303,8 +303,8 @@ class ZepEntityReader:
                         related_node_uuids.add(edge["source_node_uuid"])
                 
                 entity.related_edges = related_edges
-                
-                # 获取关联节点的基本信息
+
+                # Get basic information for associated nodes
                 related_nodes = []
                 for related_uuid in related_node_uuids:
                     if related_uuid in node_map:
@@ -331,38 +331,38 @@ class ZepEntityReader:
         )
     
     def get_entity_with_context(
-        self, 
-        graph_id: str, 
+        self,
+        graph_id: str,
         entity_uuid: str
     ) -> Optional[EntityNode]:
         """
-        获取单个实体及其完整上下文（边和关联节点，带重试机制）
-        
+        Get a single entity with its full context (edges and associated nodes, with retry mechanism)
+
         Args:
-            graph_id: 图谱ID
-            entity_uuid: 实体UUID
-            
+            graph_id: Graph ID
+            entity_uuid: Entity UUID
+
         Returns:
-            EntityNode或None
+            EntityNode or None
         """
         try:
-            # 使用重试机制获取节点
+            # Get node with retry mechanism
             node = self._call_with_retry(
                 func=lambda: self.client.graph.node.get(uuid_=entity_uuid),
-                operation_name=f"获取节点详情(uuid={entity_uuid[:8]}...)"
+                operation_name=f"get node details (uuid={entity_uuid[:8]}...)"
             )
             
             if not node:
                 return None
             
-            # 获取节点的边
+            # Get edges for the node
             edges = self.get_node_edges(entity_uuid)
-            
-            # 获取所有节点用于关联查找
+
+            # Get all nodes for association lookup
             all_nodes = self.get_all_nodes(graph_id)
             node_map = {n["uuid"]: n for n in all_nodes}
-            
-            # 处理相关边和节点
+
+            # Process related edges and nodes
             related_edges = []
             related_node_uuids = set()
             
@@ -384,7 +384,7 @@ class ZepEntityReader:
                     })
                     related_node_uuids.add(edge["source_node_uuid"])
             
-            # 获取关联节点信息
+            # Get associated node information
             related_nodes = []
             for related_uuid in related_node_uuids:
                 if related_uuid in node_map:
@@ -411,21 +411,21 @@ class ZepEntityReader:
             return None
     
     def get_entities_by_type(
-        self, 
-        graph_id: str, 
+        self,
+        graph_id: str,
         entity_type: str,
         enrich_with_edges: bool = True
     ) -> List[EntityNode]:
         """
-        获取指定类型的所有实体
-        
+        Get all entities of a specified type
+
         Args:
-            graph_id: 图谱ID
-            entity_type: 实体类型（如 "Student", "PublicFigure" 等）
-            enrich_with_edges: 是否获取相关边信息
-            
+            graph_id: Graph ID
+            entity_type: Entity type (e.g., "Student", "PublicFigure", etc.)
+            enrich_with_edges: Whether to retrieve related edge information
+
         Returns:
-            实体列表
+            List of entities
         """
         result = self.filter_defined_entities(
             graph_id=graph_id,

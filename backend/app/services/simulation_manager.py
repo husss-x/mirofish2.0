@@ -1,7 +1,7 @@
 """
-OASIS模拟管理器
-管理Twitter和Reddit双平台并行模拟
-使用预设脚本 + LLM智能生成配置参数
+OASIS Simulation Manager
+Manages parallel simulation across Twitter and Reddit dual platforms
+Uses preset scripts + LLM-intelligent config parameter generation
 """
 
 import os
@@ -22,19 +22,19 @@ logger = get_logger('mirofish.simulation')
 
 
 class SimulationStatus(str, Enum):
-    """模拟状态"""
+    """Simulation status"""
     CREATED = "created"
     PREPARING = "preparing"
     READY = "ready"
     RUNNING = "running"
     PAUSED = "paused"
-    STOPPED = "stopped"      # 模拟被手动停止
-    COMPLETED = "completed"  # 模拟自然完成
+    STOPPED = "stopped"      # Simulation was manually stopped
+    COMPLETED = "completed"  # Simulation completed naturally
     FAILED = "failed"
 
 
 class PlatformType(str, Enum):
-    """平台类型"""
+    """Platform type"""
     TWITTER = "twitter"
     REDDIT = "reddit"
 
