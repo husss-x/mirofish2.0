@@ -247,7 +247,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
-import { seedAndGenerateOntology } from '../api/graph'
+import { seedAndGenerateOntology, extractSeedText } from '../api/graph'
 
 const router = useRouter()
 
@@ -362,13 +362,21 @@ const startSimulation = async () => {
   try {
     let fileText = ''
     if (seedMode.value === 'hybrid' && files.value.length > 0) {
-      // Read file text client-side
-      fileText = await new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => resolve(e.target.result || '')
-        reader.onerror = () => resolve('')
-        reader.readAsText(files.value[0])
-      })
+      const file = files.value[0]
+      const ext = file.name.split('.').pop().toLowerCase()
+      if (ext === 'pdf') {
+        // Extract PDF server-side via PyMuPDF
+        const extracted = await extractSeedText(file)
+        fileText = extracted.text || ''
+      } else {
+        // .md / .txt — plain text, safe to read client-side
+        fileText = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (e) => resolve(e.target.result || '')
+          reader.onerror = () => resolve('')
+          reader.readAsText(file)
+        })
+      }
     }
 
     const payload = {
