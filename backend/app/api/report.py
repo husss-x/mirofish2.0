@@ -234,7 +234,7 @@ def get_generate_status():
                         "report_id": existing_report.report_id,
                         "status": "completed",
                         "progress": 100,
-                        "message": "报告已生成",
+                        "message": "Report already generated",
                         "already_completed": True
                     }
                 })
@@ -242,16 +242,16 @@ def get_generate_status():
         if not task_id:
             return jsonify({
                 "success": False,
-                "error": "请提供 task_id 或 simulation_id"
+                "error": "Please provide task_id or simulation_id"
             }), 400
-        
+
         task_manager = TaskManager()
         task = task_manager.get_task(task_id)
-        
+
         if not task:
             return jsonify({
                 "success": False,
-                "error": f"任务不存在: {task_id}"
+                "error": f"Task not found: {task_id}"
             }), 404
         
         return jsonify({
@@ -260,7 +260,7 @@ def get_generate_status():
         })
         
     except Exception as e:
-        logger.error(f"查询任务状态失败: {str(e)}")
+        logger.error(f"Failed to query task status: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e)
@@ -294,16 +294,16 @@ def get_report(report_id: str):
         if not report:
             return jsonify({
                 "success": False,
-                "error": f"报告不存在: {report_id}"
+                "error": f"Report not found: {report_id}"
             }), 404
-        
+
         return jsonify({
             "success": True,
             "data": report.to_dict()
         })
-        
+
     except Exception as e:
-        logger.error(f"获取报告失败: {str(e)}")
+        logger.error(f"Failed to get report: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
