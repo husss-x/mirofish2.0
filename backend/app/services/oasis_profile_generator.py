@@ -558,7 +558,7 @@ class OasisProfileGenerator:
                     return result
                     
                 except json.JSONDecodeError as je:
-                    logger.warning(f"JSON解析失败 (attempt {attempt+1}): {str(je)[:80]}")
+                    logger.warning(f"JSON parsing failed (attempt {attempt+1}): {str(je)[:80]}")
                     
                     # 尝试修复JSON
                     result = self._try_fix_json(content, entity_name, entity_type, entity_summary)
@@ -569,7 +569,7 @@ class OasisProfileGenerator:
                     last_error = je
                     
             except Exception as e:
-                logger.warning(f"LLM调用失败 (attempt {attempt+1}): {str(e)[:80]}")
+                logger.warning(f"LLM call failed (attempt {attempt+1}): {str(e)[:80]}")
                 last_error = e
                 import time
                 time.sleep(1 * (attempt + 1))  # 指数退避

@@ -387,7 +387,7 @@ def build_graph():
                 # 分块
                 task_manager.update_task(
                     task_id,
-                    message="文本分块中...",
+                    message="Splitting text into chunks...",
                     progress=5
                 )
                 chunks = TextProcessor.split_text(
@@ -400,7 +400,7 @@ def build_graph():
                 # 创建图谱
                 task_manager.update_task(
                     task_id,
-                    message="创建Zep图谱...",
+                    message="Creating Zep graph...",
                     progress=10
                 )
                 graph_id = builder.create_graph(name=graph_name)
@@ -412,7 +412,7 @@ def build_graph():
                 # 设置本体
                 task_manager.update_task(
                     task_id,
-                    message="设置本体定义...",
+                    message="Setting ontology definition...",
                     progress=15
                 )
                 builder.set_ontology(graph_id, ontology)
@@ -428,7 +428,7 @@ def build_graph():
                 
                 task_manager.update_task(
                     task_id,
-                    message=f"开始添加 {total_chunks} 个文本块...",
+                    message=f"Adding {total_chunks} text chunks...",
                     progress=15
                 )
                 
