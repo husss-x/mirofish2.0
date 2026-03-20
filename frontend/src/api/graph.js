@@ -97,3 +97,21 @@ export const seedAndGenerateOntology = (payload) => {
     })
   )
 }
+
+/**
+ * STEP A — Start web_only research without synthesizing.
+ * Returns { research_id, sources, sub_queries, sources_count, elapsed_seconds }
+ */
+export const seedResearch = (payload) =>
+  requestWithRetry(() =>
+    service({ url: '/api/graph/seed/research', method: 'post', data: payload })
+  )
+
+/**
+ * STEP B — Either gather more sources or proceed to synthesis + project creation.
+ * payload: { research_id, action: "search_more" | "proceed", project_name? }
+ */
+export const seedConfirm = (payload) =>
+  requestWithRetry(() =>
+    service({ url: '/api/graph/seed/confirm', method: 'post', data: payload })
+  )

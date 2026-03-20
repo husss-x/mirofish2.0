@@ -4,6 +4,8 @@
 """
 
 import os
+import time
+import uuid
 import traceback
 import threading
 from flask import request, jsonify
@@ -20,6 +22,17 @@ from ..models.project import ProjectManager, ProjectStatus
 
 # 获取日志器
 logger = get_logger('mirofish.api')
+
+# In-memory store for two-step seed research flow (web_only only)
+pending_research: dict = {}  # research_id -> {query, simulation_requirement, raw_results, sub_queries, created_at}
+
+
+def _cleanup_pending_research():
+    """Remove entries older than 30 minutes."""
+    cutoff = time.time() - 1800
+    expired = [rid for rid, e in list(pending_research.items()) if e["created_at"] < cutoff]
+    for rid in expired:
+        del pending_research[rid]
 
 
 def allowed_file(filename: str) -> bool:
@@ -609,6 +622,162 @@ def seed_extract_text():
         return jsonify({"text": text, "length": len(text)})
     except Exception as e:
         logger.error(f"[seed/extract-text] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@graph_bp.route('/seed/research', methods=['POST'])
+def seed_research():
+    """
+    STEP A of the two-step web_only flow.
+    Gathers sources without synthesizing.  Returns sources preview + research_id.
+    """
+    from app.services.seed_agent import SeedAgent
+
+    _cleanup_pending_research()
+
+    data = request.get_json() or {}
+    query = data.get("query", "").strip()
+    simulation_requirement = data.get("simulation_requirement", "").strip()
+
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+
+    try:
+        agent = SeedAgent()
+        preview = agent.get_sources_preview(query, simulation_requirement)
+
+        research_id = str(uuid.uuid4())
+        pending_research[research_id] = {
+            "query": query,
+            "simulation_requirement": simulation_requirement,
+            "raw_results": preview["raw_results"],
+            "sub_queries": preview["sub_queries"],
+            "created_at": time.time(),
+        }
+
+        logger.info(
+            f"[seed/research] research_id={research_id}, "
+            f"sources={len(preview['sources'])}, elapsed={preview['elapsed_seconds']}s"
+        )
+
+        return jsonify({
+            "research_id": research_id,
+            "sources": preview["sources"],
+            "sub_queries": preview["sub_queries"],
+            "sources_count": len(preview["sources"]),
+            "elapsed_seconds": preview["elapsed_seconds"],
+        })
+
+    except Exception as e:
+        logger.error(f"[seed/research] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@graph_bp.route('/seed/confirm', methods=['POST'])
+def seed_confirm():
+    """
+    STEP B of the two-step web_only flow.
+    action="search_more": gather more sources, merge, return updated list.
+    action="proceed": synthesize + create project (same shape as /seed).
+    """
+    from app.services.seed_agent import SeedAgent
+
+    _cleanup_pending_research()
+
+    data = request.get_json() or {}
+    research_id = data.get("research_id", "")
+    action = data.get("action", "proceed")
+
+    if research_id not in pending_research:
+        return jsonify({"error": "research_id not found or expired"}), 404
+
+    entry = pending_research[research_id]
+    query = entry["query"]
+    simulation_requirement = entry["simulation_requirement"]
+
+    try:
+        agent = SeedAgent()
+
+        if action == "search_more":
+            new_preview = agent.get_sources_preview(query, simulation_requirement)
+            existing_urls = {r["url"] for r in entry["raw_results"] if r.get("url")}
+            merged = entry["raw_results"] + [
+                r for r in new_preview["raw_results"]
+                if r.get("url") and r["url"] not in existing_urls
+            ]
+            entry["raw_results"] = merged
+            entry["sub_queries"] = new_preview["sub_queries"]
+            pending_research[research_id] = entry
+
+            sources = [
+                {"title": r.get("title", ""), "url": r.get("url", ""), "source": r.get("source", "")}
+                for r in merged
+            ]
+            logger.info(f"[seed/confirm] search_more: merged={len(merged)} sources")
+            return jsonify({
+                "research_id": research_id,
+                "sources": sources,
+                "sub_queries": entry["sub_queries"],
+                "sources_count": len(sources),
+                "elapsed_seconds": new_preview["elapsed_seconds"],
+            })
+
+        # action == "proceed": synthesize and create project
+        project_name = data.get("project_name", query[:50])
+        result_markdown = agent._synthesize(query, simulation_requirement, entry["raw_results"])
+        result_sources = [r["url"] for r in entry["raw_results"] if r.get("url")]
+
+        del pending_research[research_id]
+
+        project = ProjectManager.create_project(name=project_name)
+        project.simulation_requirement = simulation_requirement
+
+        files_dir = os.path.join(ProjectManager._get_project_dir(project.project_id), 'files')
+        os.makedirs(files_dir, exist_ok=True)
+        seed_path = os.path.join(files_dir, 'seed_document.md')
+        with open(seed_path, 'w', encoding='utf-8') as f:
+            f.write(result_markdown)
+        project.files = [{"filename": "seed_document.md", "size": len(result_markdown)}]
+
+        ProjectManager.save_extracted_text(project.project_id, result_markdown)
+        project.total_text_length = len(result_markdown)
+
+        ontology = OntologyGenerator().generate(
+            document_texts=[result_markdown],
+            simulation_requirement=simulation_requirement,
+        )
+
+        project.ontology = {
+            "entity_types": ontology.get("entity_types", []),
+            "edge_types": ontology.get("edge_types", []),
+        }
+        project.analysis_summary = ontology.get("analysis_summary", "")
+        project.status = ProjectStatus.ONTOLOGY_GENERATED
+        ProjectManager.save_project(project)
+
+        logger.info(f"[seed/confirm] Project created: {project.project_id}")
+        logger.info(f"[seed] result.markdown={len(result_markdown)} chars, sources={len(result_sources)}")
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "project_id": project.project_id,
+                "project_name": project.name,
+                "ontology": project.ontology,
+                "analysis_summary": project.analysis_summary,
+                "files": project.files,
+                "total_text_length": project.total_text_length,
+                "seed_meta": {
+                    "mode": "web_only",
+                    "sources_count": len(result_sources),
+                    "elapsed_seconds": 0,
+                    "sources": result_sources[:10],
+                },
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"[seed/confirm] {e}")
         return jsonify({"error": str(e)}), 500
 
 

@@ -225,13 +225,61 @@
               <button
                 class="start-engine-btn"
                 @click="startSimulation"
-                :disabled="!canSubmit || loading"
+                :disabled="!canSubmit || loading || showSourcesPanel"
               >
                 <span v-if="!loading">Launch Engine</span>
                 <span v-else-if="seedResearching">Researching...</span>
                 <span v-else>Initializing...</span>
                 <span class="btn-arrow">→</span>
               </button>
+            </div>
+          </div>
+
+          <!-- Sources preview panel (web_only two-step) -->
+          <div v-if="showSourcesPanel && seedMode === 'web_only'" class="sources-panel">
+            <div class="sources-panel-header">
+              <span class="sources-panel-title">SOURCES FOUND ({{ sourcesPreview.length }})</span>
+              <div class="sources-panel-actions">
+                <button
+                  class="sources-action-btn secondary"
+                  @click="searchMore"
+                  :disabled="confirmLoading"
+                >
+                  <span v-if="confirmLoading && false">...</span>
+                  <span>search more</span>
+                </button>
+                <button
+                  class="sources-action-btn primary"
+                  @click="proceedToGenerate"
+                  :disabled="confirmLoading"
+                >
+                  <span v-if="confirmLoading">Processing...</span>
+                  <span v-else>proceed →</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="sources-list">
+              <div
+                v-for="(src, i) in sourcesPreview"
+                :key="i"
+                class="source-card"
+              >
+                <span class="source-badge" :class="src.source">{{ src.source.toUpperCase() }}</span>
+                <div class="source-info">
+                  <div class="source-title">{{ src.title ? src.title.slice(0, 80) : '(no title)' }}</div>
+                  <a
+                    v-if="src.url"
+                    :href="src.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="source-url"
+                  >{{ src.url.length > 60 ? src.url.slice(0, 60) + '…' : src.url }}</a>
+                </div>
+              </div>
+              <div v-if="sourcesPreview.length === 0" class="sources-empty">
+                No sources found. Try "search more" or adjust your query.
+              </div>
             </div>
           </div>
         </div>
@@ -247,7 +295,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
-import { seedAndGenerateOntology, extractSeedText } from '../api/graph'
+import { seedAndGenerateOntology, extractSeedText, seedResearch, seedConfirm } from '../api/graph'
 
 const router = useRouter()
 
@@ -277,6 +325,13 @@ const seedModes = [
 const seedQuery = ref('')
 const seedResearching = ref(false)
 const seedSourceCount = ref(0)
+
+// Two-step research state (web_only only)
+const researchId = ref('')
+const sourcesPreview = ref([])   // [{ title, url, source }]
+const subQueriesPreview = ref([])
+const showSourcesPanel = ref(false)
+const confirmLoading = ref(false)
 
 // Computed: whether form can be submitted
 const canSubmit = computed(() => {
@@ -353,7 +408,34 @@ const startSimulation = async () => {
     return
   }
 
-  // Web only or Hybrid: call seed API, then navigate to existing project
+  if (seedMode.value === 'web_only') {
+    // STEP A: gather sources preview only
+    loading.value = true
+    seedResearching.value = true
+    showSourcesPanel.value = false
+    sourcesPreview.value = []
+    researchId.value = ''
+    error.value = ''
+    try {
+      const res = await seedResearch({
+        query: seedQuery.value.trim(),
+        simulation_requirement: formData.value.simulationRequirement.trim(),
+      })
+      researchId.value = res.research_id || ''
+      sourcesPreview.value = res.sources || []
+      subQueriesPreview.value = res.sub_queries || []
+      seedSourceCount.value = res.sources_count || 0
+      showSourcesPanel.value = true
+    } catch (err) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+      seedResearching.value = false
+    }
+    return
+  }
+
+  // Hybrid: call seed API directly, then navigate to existing project
   loading.value = true
   seedResearching.value = true
   seedSourceCount.value = 0
@@ -361,15 +443,13 @@ const startSimulation = async () => {
 
   try {
     let fileText = ''
-    if (seedMode.value === 'hybrid' && files.value.length > 0) {
+    if (files.value.length > 0) {
       const file = files.value[0]
       const ext = file.name.split('.').pop().toLowerCase()
       if (ext === 'pdf') {
-        // Extract PDF server-side via PyMuPDF
         const extracted = await extractSeedText(file)
         fileText = extracted.text || ''
       } else {
-        // .md / .txt — plain text, safe to read client-side
         fileText = await new Promise((resolve) => {
           const reader = new FileReader()
           reader.onload = (e) => resolve(e.target.result || '')
@@ -383,7 +463,7 @@ const startSimulation = async () => {
       query: seedQuery.value.trim(),
       simulation_requirement: formData.value.simulationRequirement.trim(),
       project_name: seedQuery.value.trim().slice(0, 50),
-      mode: seedMode.value,
+      mode: 'hybrid',
       ...(fileText ? { file_text: fileText } : {}),
     }
 
@@ -399,6 +479,46 @@ const startSimulation = async () => {
   } finally {
     loading.value = false
     seedResearching.value = false
+  }
+}
+
+// STEP B — search_more: gather more sources and merge
+const searchMore = async () => {
+  if (!researchId.value || confirmLoading.value) return
+  confirmLoading.value = true
+  error.value = ''
+  try {
+    const res = await seedConfirm({ research_id: researchId.value, action: 'search_more' })
+    sourcesPreview.value = res.sources || []
+    seedSourceCount.value = res.sources_count || 0
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    confirmLoading.value = false
+  }
+}
+
+// STEP B — proceed: synthesize + create project
+const proceedToGenerate = async () => {
+  if (!researchId.value || confirmLoading.value) return
+  confirmLoading.value = true
+  error.value = ''
+  try {
+    const res = await seedConfirm({
+      research_id: researchId.value,
+      action: 'proceed',
+      project_name: seedQuery.value.trim().slice(0, 50),
+    })
+    if (res.success && res.data?.project_id) {
+      seedSourceCount.value = res.data.seed_meta?.sources_count || 0
+      router.push({ name: 'Process', params: { projectId: res.data.project_id } })
+    } else {
+      error.value = res.error || 'Failed to generate project'
+    }
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    confirmLoading.value = false
   }
 }
 </script>
@@ -1025,6 +1145,149 @@ const startSimulation = async () => {
   0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
   70% { box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); }
   100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+/* Sources preview panel */
+.sources-panel {
+  border: 1px solid #CCC;
+  border-top: none;
+  background: #FAFAFA;
+}
+
+.sources-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid #EEE;
+  background: #F5F5F5;
+}
+
+.sources-panel-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--black);
+}
+
+.sources-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sources-action-btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.sources-action-btn.secondary {
+  background: transparent;
+  border: 1px solid #CCC;
+  color: #555;
+}
+
+.sources-action-btn.secondary:hover:not(:disabled) {
+  border-color: #888;
+  color: var(--black);
+}
+
+.sources-action-btn.primary {
+  background: var(--black);
+  border: 1px solid var(--black);
+  color: var(--white);
+}
+
+.sources-action-btn.primary:hover:not(:disabled) {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+
+.sources-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sources-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.source-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 20px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.source-card:last-child {
+  border-bottom: none;
+}
+
+.source-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+
+/* Badge colours per source type — mirrors Step1GraphBuild DONE/GENERATING palette */
+.source-badge.tavily    { background: #E8F5E9; color: #2E7D32; }
+.source-badge.rss       { background: #E3F2FD; color: #1565C0; }
+.source-badge.grok_x    { background: #F3E5F5; color: #6A1B9A; }
+.source-badge.wikipedia { background: #FFF8E1; color: #F57F17; }
+.source-badge.gdelt     { background: #FBE9E7; color: #BF360C; }
+
+.source-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--black);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-url {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #888;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-url:hover {
+  color: var(--orange);
+  text-decoration: underline;
+}
+
+.sources-empty {
+  padding: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #AAA;
+  text-align: center;
 }
 
 /* Responsive layout */
