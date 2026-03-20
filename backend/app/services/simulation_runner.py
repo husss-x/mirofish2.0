@@ -1149,7 +1149,7 @@ class SimulationRunner:
                     os.remove(file_path)
                     cleaned_files.append(filename)
                 except Exception as e:
-                    errors.append(f"删除 {filename} 失败: {str(e)}")
+                    errors.append(f"Failed to delete {filename}: {str(e)}")
         
         # 清理平台目录中的动作日志
         for dir_name in dirs_to_clean:
@@ -1161,13 +1161,13 @@ class SimulationRunner:
                         os.remove(actions_file)
                         cleaned_files.append(f"{dir_name}/actions.jsonl")
                     except Exception as e:
-                        errors.append(f"删除 {dir_name}/actions.jsonl 失败: {str(e)}")
+                        errors.append(f"Failed to delete {dir_name}/actions.jsonl: {str(e)}")
         
         # 清理内存中的运行状态
         if simulation_id in cls._run_states:
             del cls._run_states[simulation_id]
         
-        logger.info(f"清理模拟日志完成: {simulation_id}, 删除文件: {cleaned_files}")
+        logger.info(f"Simulation log cleanup complete: {simulation_id}, deleted files: {cleaned_files}")
         
         return {
             "success": len(errors) == 0,
@@ -1197,13 +1197,13 @@ class SimulationRunner:
         if not has_processes and not has_updaters:
             return  # 没有需要清理的内容，静默返回
         
-        logger.info("正在清理所有模拟进程...")
+        logger.info("Cleaning up all simulation processes...")
         
         # 首先停止所有图谱记忆更新器（stop_all 内部会打印日志）
         try:
             ZepGraphMemoryManager.stop_all()
         except Exception as e:
-            logger.error(f"停止图谱记忆更新器失败: {e}")
+            logger.error(f"Failed to stop graph memory updaters: {e}")
         cls._graph_memory_enabled.clear()
         
         # 复制字典以避免在迭代时修改
@@ -1212,7 +1212,7 @@ class SimulationRunner:
         for simulation_id, process in processes:
             try:
                 if process.poll() is None:  # 进程仍在运行
-                    logger.info(f"终止模拟进程: {simulation_id}, pid={process.pid}")
+                    logger.info(f"Terminating simulation process: {simulation_id}, pid={process.pid}")
                     
                     try:
                         # 使用跨平台的进程终止方法
@@ -1232,14 +1232,14 @@ class SimulationRunner:
                         state.twitter_running = False
                         state.reddit_running = False
                         state.completed_at = datetime.now().isoformat()
-                        state.error = "服务器关闭，模拟被终止"
+                        state.error = "Server shutdown, simulation was terminated"
                         cls._save_run_state(state)
                     
                     # 同时更新 state.json，将状态设为 stopped
                     try:
                         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
                         state_file = os.path.join(sim_dir, "state.json")
-                        logger.info(f"尝试更新 state.json: {state_file}")
+                        logger.info(f"Attempting to update state.json: {state_file}")
                         if os.path.exists(state_file):
                             with open(state_file, 'r', encoding='utf-8') as f:
                                 state_data = json.load(f)
@@ -1247,14 +1247,14 @@ class SimulationRunner:
                             state_data['updated_at'] = datetime.now().isoformat()
                             with open(state_file, 'w', encoding='utf-8') as f:
                                 json.dump(state_data, f, indent=2, ensure_ascii=False)
-                            logger.info(f"已更新 state.json 状态为 stopped: {simulation_id}")
+                            logger.info(f"Updated state.json status to stopped: {simulation_id}")
                         else:
-                            logger.warning(f"state.json 不存在: {state_file}")
+                            logger.warning(f"state.json not found: {state_file}")
                     except Exception as state_err:
-                        logger.warning(f"更新 state.json 失败: {simulation_id}, error={state_err}")
+                        logger.warning(f"Failed to update state.json: {simulation_id}, error={state_err}")
                         
             except Exception as e:
-                logger.error(f"清理进程失败: {simulation_id}, error={e}")
+                logger.error(f"Failed to clean up process: {simulation_id}, error={e}")
         
         # 清理文件句柄
         for simulation_id, file_handle in list(cls._stdout_files.items()):
@@ -1277,7 +1277,7 @@ class SimulationRunner:
         cls._processes.clear()
         cls._action_queues.clear()
         
-        logger.info("模拟进程清理完成")
+        logger.info("Simulation process cleanup complete")
     
     @classmethod
     def register_cleanup(cls):
@@ -1315,7 +1315,7 @@ class SimulationRunner:
             """信号处理器：先清理模拟进程，再调用原处理器"""
             # 只有在有进程需要清理时才打印日志
             if cls._processes or cls._graph_memory_enabled:
-                logger.info(f"收到信号 {signum}，开始清理...")
+                logger.info(f"Received signal {signum}, starting cleanup...")
             cls.cleanup_all_simulations()
             
             # 调用原有的信号处理器，让 Flask 正常退出
@@ -1348,7 +1348,7 @@ class SimulationRunner:
                 signal.signal(signal.SIGHUP, cleanup_handler)
         except ValueError:
             # 不在主线程中，只能使用 atexit
-            logger.warning("无法注册信号处理器（不在主线程），仅使用 atexit")
+            logger.warning("Cannot register signal handlers (not in main thread), using atexit only")
         
         _cleanup_registered = True
     
@@ -1450,14 +1450,14 @@ class SimulationRunner:
         """
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
         if not os.path.exists(sim_dir):
-            raise ValueError(f"模拟不存在: {simulation_id}")
+            raise ValueError(f"Simulation not found: {simulation_id}")
 
         ipc_client = SimulationIPCClient(sim_dir)
 
         if not ipc_client.check_env_alive():
-            raise ValueError(f"模拟环境未运行或已关闭，无法执行Interview: {simulation_id}")
+            raise ValueError(f"Simulation environment is not running or has been closed, cannot execute Interview: {simulation_id}")
 
-        logger.info(f"发送Interview命令: simulation_id={simulation_id}, agent_id={agent_id}, platform={platform}")
+        logger.info(f"Sending Interview command: simulation_id={simulation_id}, agent_id={agent_id}, platform={platform}")
 
         response = ipc_client.send_interview(
             agent_id=agent_id,
@@ -1512,14 +1512,14 @@ class SimulationRunner:
         """
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
         if not os.path.exists(sim_dir):
-            raise ValueError(f"模拟不存在: {simulation_id}")
+            raise ValueError(f"Simulation not found: {simulation_id}")
 
         ipc_client = SimulationIPCClient(sim_dir)
 
         if not ipc_client.check_env_alive():
-            raise ValueError(f"模拟环境未运行或已关闭，无法执行Interview: {simulation_id}")
+            raise ValueError(f"Simulation environment is not running or has been closed, cannot execute Interview: {simulation_id}")
 
-        logger.info(f"发送批量Interview命令: simulation_id={simulation_id}, count={len(interviews)}, platform={platform}")
+        logger.info(f"Sending batch Interview command: simulation_id={simulation_id}, count={len(interviews)}, platform={platform}")
 
         response = ipc_client.send_batch_interview(
             interviews=interviews,
@@ -1569,19 +1569,19 @@ class SimulationRunner:
         """
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
         if not os.path.exists(sim_dir):
-            raise ValueError(f"模拟不存在: {simulation_id}")
+            raise ValueError(f"Simulation not found: {simulation_id}")
 
         # 从配置文件获取所有Agent信息
         config_path = os.path.join(sim_dir, "simulation_config.json")
         if not os.path.exists(config_path):
-            raise ValueError(f"模拟配置不存在: {simulation_id}")
+            raise ValueError(f"Simulation config not found: {simulation_id}")
 
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
 
         agent_configs = config.get("agent_configs", [])
         if not agent_configs:
-            raise ValueError(f"模拟配置中没有Agent: {simulation_id}")
+            raise ValueError(f"No agents found in simulation config: {simulation_id}")
 
         # 构建批量采访列表
         interviews = []
@@ -1593,7 +1593,7 @@ class SimulationRunner:
                     "prompt": prompt
                 })
 
-        logger.info(f"发送全局Interview命令: simulation_id={simulation_id}, agent_count={len(interviews)}, platform={platform}")
+        logger.info(f"Sending global Interview command: simulation_id={simulation_id}, agent_count={len(interviews)}, platform={platform}")
 
         return cls.interview_agents_batch(
             simulation_id=simulation_id,
@@ -1622,24 +1622,24 @@ class SimulationRunner:
         """
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
         if not os.path.exists(sim_dir):
-            raise ValueError(f"模拟不存在: {simulation_id}")
-        
+            raise ValueError(f"Simulation not found: {simulation_id}")
+
         ipc_client = SimulationIPCClient(sim_dir)
-        
+
         if not ipc_client.check_env_alive():
             return {
                 "success": True,
-                "message": "环境已经关闭"
+                "message": "Environment is already closed"
             }
-        
-        logger.info(f"发送关闭环境命令: simulation_id={simulation_id}")
+
+        logger.info(f"Sending close environment command: simulation_id={simulation_id}")
         
         try:
             response = ipc_client.send_close_env(timeout=timeout)
             
             return {
                 "success": response.status.value == "completed",
-                "message": "环境关闭命令已发送",
+                "message": "Close environment command sent",
                 "result": response.result,
                 "timestamp": response.timestamp
             }
@@ -1647,7 +1647,7 @@ class SimulationRunner:
             # 超时可能是因为环境正在关闭
             return {
                 "success": True,
-                "message": "环境关闭命令已发送（等待响应超时，环境可能正在关闭）"
+                "message": "Close environment command sent (response timed out, environment may be closing)"
             }
     
     @classmethod
@@ -1704,7 +1704,7 @@ class SimulationRunner:
             conn.close()
             
         except Exception as e:
-            logger.error(f"读取Interview历史失败 ({platform_name}): {e}")
+            logger.error(f"Failed to read Interview history ({platform_name}): {e}")
         
         return results
 

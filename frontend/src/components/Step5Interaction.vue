@@ -862,7 +862,7 @@ const submitSurvey = async () => {
       throw new Error(res.error || 'Request failed')
     }
   } catch (err) {
-    addLog(`问卷发送失败: ${err.message}`)
+    addLog(`Survey send failed: ${err.message}`)
   } finally {
     isSurveying.value = false
   }
@@ -873,7 +873,7 @@ const loadReportData = async () => {
   if (!props.reportId) return
   
   try {
-    addLog(`Loading report data: ${props.reportId}`)
+    addLog(`Loading report: ${props.reportId}`)
     
     // Get report info
     const reportRes = await getReport(props.reportId)
@@ -918,10 +918,10 @@ const loadProfiles = async () => {
     const res = await getSimulationProfilesRealtime(props.simulationId, 'reddit')
     if (res.success && res.data) {
       profiles.value = res.data.profiles || []
-      addLog(`Loaded ${profiles.value.length} simulated individuals`)
+      addLog(`Loaded ${profiles.value.length} simulation agents`)
     }
   } catch (err) {
-    addLog(`Failed to load simulated individuals: ${err.message}`)
+    addLog(`Failed to load simulation agents: ${err.message}`)
   }
 }
 
@@ -935,7 +935,7 @@ const handleClickOutside = (e) => {
 
 // Lifecycle
 onMounted(() => {
-  addLog('Step5 Deep Interaction initialized')
+  addLog('Step5 interaction initialized')
   loadReportData()
   loadProfiles()
   document.addEventListener('click', handleClickOutside)
