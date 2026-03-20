@@ -589,6 +589,28 @@ def get_graph_data(graph_id: str):
         }), 500
 
 
+@graph_bp.route('/seed/extract-text', methods=['POST'])
+def seed_extract_text():
+    """Extract plain text from an uploaded file using FileParser (PyMuPDF for PDF)."""
+    if 'file' not in request.files:
+        return jsonify({"error": "file field required"}), 400
+    file = request.files['file']
+    if not file.filename or not allowed_file(file.filename):
+        return jsonify({"error": "Unsupported file type"}), 400
+    try:
+        import tempfile, shutil
+        suffix = os.path.splitext(file.filename)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+        text = FileParser.extract_text(tmp_path)
+        os.unlink(tmp_path)
+        return jsonify({"text": text, "length": len(text)})
+    except Exception as e:
+        logger.error(f"[seed/extract-text] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @graph_bp.route('/seed', methods=['POST'])
 def seed_and_generate_ontology():
     """

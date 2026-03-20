@@ -74,6 +74,19 @@ export function getProject(projectId) {
  * @param {Object} payload - { query, simulation_requirement, project_name, mode, file_text? }
  * @returns {Promise}
  */
+export const extractSeedText = (file) => {
+  const form = new FormData()
+  form.append('file', file)
+  return requestWithRetry(() =>
+    service({
+      url: '/api/graph/seed/extract-text',
+      method: 'post',
+      data: form,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  )
+}
+
 export const seedAndGenerateOntology = (payload) => {
   // payload: { query, simulation_requirement, project_name, mode, file_text? }
   return requestWithRetry(() =>
