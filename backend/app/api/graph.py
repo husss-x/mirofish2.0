@@ -597,7 +597,7 @@ def seed_and_generate_ontology():
     """
     from app.services.seed_agent import SeedAgent
 
-    data = request.get_json()
+    data = request.get_json() or {}
     query = data.get("query", "").strip()
     simulation_requirement = data.get("simulation_requirement", "").strip()
     project_name = data.get("project_name", query[:50])
