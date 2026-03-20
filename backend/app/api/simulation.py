@@ -2216,7 +2216,7 @@ def interview_agent():
         if platform and platform not in ("twitter", "reddit"):
             return jsonify({
                 "success": False,
-                "error": "platform 参数只能是 'twitter' 或 'reddit'"
+                "error": "platform must be 'twitter' or 'reddit'"
             }), 400
         
         # 检查环境状态
@@ -2331,7 +2331,7 @@ def interview_agents_batch():
         if platform and platform not in ("twitter", "reddit"):
             return jsonify({
                 "success": False,
-                "error": "platform 参数只能是 'twitter' 或 'reddit'"
+                "error": "platform must be 'twitter' or 'reddit'"
             }), 400
 
         # 验证每个采访项
@@ -2458,7 +2458,7 @@ def interview_all_agents():
         if platform and platform not in ("twitter", "reddit"):
             return jsonify({
                 "success": False,
-                "error": "platform 参数只能是 'twitter' 或 'reddit'"
+                "error": "platform must be 'twitter' or 'reddit'"
             }), 400
 
         # 检查环境状态
