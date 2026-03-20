@@ -858,10 +858,10 @@ class SimulationRunner:
                     if "agent_id" not in data:
                         continue
                     
-                    # 获取平台：优先使用记录中的 platform，否则使用默认平台
+                    # Get platform: prefer the platform field in the record, otherwise use default
                     record_platform = data.get("platform") or default_platform or ""
-                    
-                    # 过滤
+
+                    # Filter
                     if platform_filter and record_platform != platform_filter:
                         continue
                     if agent_id is not None and data.get("agent_id") != agent_id:
@@ -895,26 +895,26 @@ class SimulationRunner:
         round_num: Optional[int] = None
     ) -> List[AgentAction]:
         """
-        获取所有平台的完整动作历史（无分页限制）
-        
+        Get complete action history across all platforms (no pagination limit)
+
         Args:
-            simulation_id: 模拟ID
-            platform: 过滤平台（twitter/reddit）
-            agent_id: 过滤Agent
-            round_num: 过滤轮次
-            
+            simulation_id: Simulation ID
+            platform: Filter by platform (twitter/reddit)
+            agent_id: Filter by Agent
+            round_num: Filter by round number
+
         Returns:
-            完整的动作列表（按时间戳排序，新的在前）
+            Complete action list (sorted by timestamp, newest first)
         """
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
         actions = []
         
-        # 读取 Twitter 动作文件（根据文件路径自动设置 platform 为 twitter）
+        # Read Twitter action file (platform auto-set to twitter based on file path)
         twitter_actions_log = os.path.join(sim_dir, "twitter", "actions.jsonl")
         if not platform or platform == "twitter":
             actions.extend(cls._read_actions_from_file(
                 twitter_actions_log,
-                default_platform="twitter",  # 自动填充 platform 字段
+                default_platform="twitter",  # Auto-fill platform field
                 platform_filter=platform,
                 agent_id=agent_id, 
                 round_num=round_num
