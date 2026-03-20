@@ -5,7 +5,7 @@ MiroFish is a next-generation AI prediction and simulation engine powered by mul
 ## Architecture
 
 - **Frontend**: Vue 3 + Vite, runs on port 5000
-- **Backend**: Flask (Python 3.11+), runs on port 5001
+- **Backend**: Flask (Python 3.11+), runs on port 8000
 - **Package manager (backend)**: `uv`
 - **Package manager (frontend/root)**: `npm`
 
