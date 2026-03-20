@@ -632,33 +632,33 @@ const parsePanorama = (text) => {
   }
   
   try {
-    // 提取查询
-    const queryMatch = text.match(/查询:\s*(.+?)(?:\n|$)/)
+    // Extract query
+    const queryMatch = text.match(/\u67e5\u8be2:\s*(.+?)(?:\n|$)/)
     if (queryMatch) result.query = queryMatch[1].trim()
-    
-    // 提取统计数据
-    const nodesMatch = text.match(/总节点数:\s*(\d+)/)
-    const edgesMatch = text.match(/总边数:\s*(\d+)/)
-    const activeMatch = text.match(/当前有效事实:\s*(\d+)/)
-    const histMatch = text.match(/历史\/过期事实:\s*(\d+)/)
+
+    // Extract statistics
+    const nodesMatch = text.match(/\u603b\u8282\u70b9\u6570:\s*(\d+)/)
+    const edgesMatch = text.match(/\u603b\u8fb9\u6570:\s*(\d+)/)
+    const activeMatch = text.match(/\u5f53\u524d\u6709\u6548\u4e8b\u5b9e:\s*(\d+)/)
+    const histMatch = text.match(/\u5386\u53f2\/\u8fc7\u671f\u4e8b\u5b9e:\s*(\d+)/)
     if (nodesMatch) result.stats.nodes = parseInt(nodesMatch[1])
     if (edgesMatch) result.stats.edges = parseInt(edgesMatch[1])
     if (activeMatch) result.stats.activeFacts = parseInt(activeMatch[1])
     if (histMatch) result.stats.historicalFacts = parseInt(histMatch[1])
     
-    // 提取当前有效事实 - 完整提取，不限制数量
-    const activeSection = text.match(/### 【当前有效事实】[\s\S]*?\n([\s\S]*?)(?=\n###|$)/)
+    // Extract current active facts - full extraction, no count limit
+    const activeSection = text.match(/### \u3010\u5f53\u524d\u6709\u6548\u4e8b\u5b9e\u3011[\s\S]*?\n([\s\S]*?)(?=\n###|$)/)
     if (activeSection) {
       const lines = activeSection[1].split('\n').filter(l => l.match(/^\d+\./))
       result.activeFacts = lines.map(l => {
-        // 移除编号和引号
+        // Remove numbering and quotes
         const factText = l.replace(/^\d+\.\s*/, '').replace(/^"|"$/g, '').trim()
         return factText
       }).filter(Boolean)
     }
     
-    // 提取历史/过期事实 - 完整提取，不限制数量
-    const histSection = text.match(/### 【历史\/过期事实】[\s\S]*?\n([\s\S]*?)(?=\n###|$)/)
+    // Extract historical/expired facts - full extraction, no count limit
+    const histSection = text.match(/### \u3010\u5386\u53f2\/\u8fc7\u671f\u4e8b\u5b9e\u3011[\s\S]*?\n([\s\S]*?)(?=\n###|$)/)
     if (histSection) {
       const lines = histSection[1].split('\n').filter(l => l.match(/^\d+\./))
       result.historicalFacts = lines.map(l => {
@@ -667,8 +667,8 @@ const parsePanorama = (text) => {
       }).filter(Boolean)
     }
     
-    // 提取涉及实体 - 完整提取，不限制数量
-    const entitySection = text.match(/### 【涉及实体】\n([\s\S]*?)(?=\n###|$)/)
+    // Extract involved entities - full extraction, no count limit
+    const entitySection = text.match(/### \u3010\u6d89\u53ca\u5b9e\u4f53\u3011\n([\s\S]*?)(?=\n###|$)/)
     if (entitySection) {
       const lines = entitySection[1].split('\n').filter(l => l.trim().startsWith('-'))
       result.entities = lines.map(l => {
@@ -696,25 +696,25 @@ const parseInterview = (text) => {
   }
   
   try {
-    // 提取采访主题
-    const topicMatch = text.match(/\*\*采访主题:\*\*\s*(.+?)(?:\n|$)/)
+    // Extract interview topic
+    const topicMatch = text.match(/\*\*\u91c7\u8bbf\u4e3b\u9898:\*\*\s*(.+?)(?:\n|$)/)
     if (topicMatch) result.topic = topicMatch[1].trim()
     
-    // 提取采访人数（如 "5 / 9 位模拟Agent"）
-    const countMatch = text.match(/\*\*采访人数:\*\*\s*(\d+)\s*\/\s*(\d+)/)
+    // Extract interview count (e.g. "5 / 9 simulated agents")
+    const countMatch = text.match(/\*\*\u91c7\u8bbf\u4eba\u6570:\*\*\s*(\d+)\s*\/\s*(\d+)/)
     if (countMatch) {
       result.successCount = parseInt(countMatch[1])
       result.totalCount = parseInt(countMatch[2])
       result.agentCount = `${countMatch[1]} / ${countMatch[2]}`
     }
     
-    // 提取采访对象选择理由
-    const reasonMatch = text.match(/### 采访对象选择理由\n([\s\S]*?)(?=\n---\n|\n### 采访实录)/)
+    // Extract interview subject selection reason
+    const reasonMatch = text.match(/### \u91c7\u8bbf\u5bf9\u8c61\u9009\u62e9\u7406\u7531\n([\s\S]*?)(?=\n---\n|\n### \u91c7\u8bbf\u5b9e\u5f55)/)
     if (reasonMatch) {
       result.selectionReason = reasonMatch[1].trim()
     }
     
-    // 解析每个人的选择理由
+    // Parse individual selection reasons
     const parseIndividualReasons = (reasonText) => {
       const reasons = {}
       if (!reasonText) return reasons
@@ -728,26 +728,26 @@ const parseInterview = (text) => {
         let name = null
         let reasonStart = null
         
-        // 格式1: 数字. **名字（index=X）**：理由
-        // 例如: 1. **校友_345（index=1）**：作为武大校友...
+        // Format 1: number. **name（index=X）**: reason
+        // e.g.: 1. **alumni_345（index=1）**: as a Wuhan University alumnus...
         headerMatch = line.match(/^\d+\.\s*\*\*([^*（(]+)(?:[（(]index\s*=?\s*\d+[)）])?\*\*[：:]\s*(.*)/)
         if (headerMatch) {
           name = headerMatch[1].trim()
           reasonStart = headerMatch[2]
         }
         
-        // 格式2: - 选择名字（index X）：理由
-        // 例如: - 选择家长_601（index 0）：作为家长群体代表...
+        // Format 2: - select name（index X）: reason
+        // e.g.: - select parent_601（index 0）: as a representative of parent group...
         if (!headerMatch) {
-          headerMatch = line.match(/^-\s*选择([^（(]+)(?:[（(]index\s*=?\s*\d+[)）])?[：:]\s*(.*)/)
+          headerMatch = line.match(/^-\s*\u9009\u62e9([^\uff08(]+)(?:[\uff08(]index\s*=?\s*\d+[)\uff09])?[\uff1a:]\s*(.*)/)
           if (headerMatch) {
             name = headerMatch[1].trim()
             reasonStart = headerMatch[2]
           }
         }
         
-        // 格式3: - **名字（index X）**：理由
-        // 例如: - **家长_601（index 0）**：作为家长群体代表...
+        // Format 3: - **name（index X）**: reason
+        // e.g.: - **parent_601（index 0）**: as a representative of parent group...
         if (!headerMatch) {
           headerMatch = line.match(/^-\s*\*\*([^*（(]+)(?:[（(]index\s*=?\s*\d+[)）])?\*\*[：:]\s*(.*)/)
           if (headerMatch) {
@@ -757,20 +757,20 @@ const parseInterview = (text) => {
         }
         
         if (name) {
-          // 保存上一个人的理由
+          // Save the previous person's reason
           if (currentName && currentReason.length > 0) {
             reasons[currentName] = currentReason.join(' ').trim()
           }
-          // 开始新的人
+          // Start a new person
           currentName = name
           currentReason = reasonStart ? [reasonStart.trim()] : []
-        } else if (currentName && line.trim() && !line.match(/^未选|^综上|^最终选择/)) {
-          // 理由的续行（排除结尾总结段落）
+        } else if (currentName && line.trim() && !line.match(/^\u672a\u9009|\u7efc\u4e0a|\u6700\u7ec8\u9009\u62e9/)) {
+          // Continuation line of reason (exclude trailing summary paragraphs)
           currentReason.push(line.trim())
         }
       }
-      
-      // 保存最后一个人的理由
+
+      // Save the last person's reason
       if (currentName && currentReason.length > 0) {
         reasons[currentName] = currentReason.join(' ').trim()
       }
@@ -780,8 +780,8 @@ const parseInterview = (text) => {
     
     const individualReasons = parseIndividualReasons(result.selectionReason)
     
-    // 提取每个采访记录
-    const interviewBlocks = text.split(/#### 采访 #\d+:/).slice(1)
+    // Extract each interview record
+    const interviewBlocks = text.split(/#### \u91c7\u8bbf #\d+:/).slice(1)
     
     interviewBlocks.forEach((block, index) => {
       const interview = {
