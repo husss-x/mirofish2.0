@@ -26,6 +26,10 @@ NEWS_FEEDS = [
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://www.aljazeera.com/xml/rss/all.xml",
     "https://feeds.ap.org/ap/world",
+    "https://www.ansa.it/sito/notizie/politica/politica_rss.xml",
+    "https://www.corriere.it/rss/politica.xml",
+    "https://www.repubblica.it/rss/politica/rss2.0.xml",
+    "https://www.ilsole24ore.com/rss/notizie--mondo.xml",
 ]
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
@@ -52,7 +56,7 @@ class SeedAgent:
         self.grok_key = os.getenv("GROK_API_KEY")
         self.max_tokens = int(os.getenv("SEED_MAX_TOKENS", "8000"))
         self.max_seconds = int(os.getenv("SEED_MAX_SECONDS", "90"))
-        self.max_sources = int(os.getenv("SEED_MAX_SOURCES", "15"))
+        self.max_sources = int(os.getenv("SEED_MAX_SOURCES", "50"))
 
     # ------------------------------------------------------------------
     # Public interface
@@ -104,6 +108,26 @@ class SeedAgent:
             elapsed_seconds=round(time.time() - start, 1),
         )
 
+    def get_sources_preview(self, query: str, simulation_requirement: str) -> dict:
+        """Gather sources without synthesizing — used by the two-step research flow."""
+        start = time.time()
+        sub_queries = self._decompose_query(query)
+        raw_results = self._gather_all_sources(query, sub_queries)
+        sources = [
+            {
+                "title": r.get("title", ""),
+                "url": r.get("url", ""),
+                "source": r.get("source", ""),
+            }
+            for r in raw_results
+        ]
+        return {
+            "sub_queries": sub_queries,
+            "raw_results": raw_results,
+            "sources": sources,
+            "elapsed_seconds": round(time.time() - start, 1),
+        }
+
     # ------------------------------------------------------------------
     # Step 1 — Query decomposition
     # ------------------------------------------------------------------
@@ -141,7 +165,7 @@ class SeedAgent:
 
         # Tavily web search
         if self.tavily_key:
-            results += self._search_tavily(sub_queries[:6])
+            results += self._search_tavily(sub_queries[:8])
 
         # Grok/X real-time tweets
         if self.grok_key:
@@ -151,7 +175,7 @@ class SeedAgent:
         results += self._scrape_rss(query)
 
         # Wikipedia background
-        results += self._search_wikipedia(sub_queries[:3])
+        results += self._search_wikipedia(sub_queries[:6])
 
         # GDELT geopolitical events
         results += self._search_gdelt(query)
@@ -174,7 +198,7 @@ class SeedAgent:
                 resp = client.search(
                     q,
                     search_depth="basic",
-                    max_results=3,
+                    max_results=5,
                     include_answer=False,
                 )
                 for r in resp.get("results", []):
@@ -256,7 +280,7 @@ class SeedAgent:
                             "title": entry.get("title", ""),
                             "content": full_text or entry.get("summary", ""),
                         })
-                        if len(results) >= 5:
+                        if len(results) >= 15:
                             break
             except Exception as e:
                 logger.warning(f"[SeedAgent] RSS error {feed_url}: {e}")
@@ -268,7 +292,7 @@ class SeedAgent:
         from urllib.parse import quote
         headers = {"User-Agent": "MiroFish/2.0"}
         results = []
-        for q in sub_queries[:3]:
+        for q in sub_queries[:6]:
             try:
                 search_resp = requests.get(
                     WIKIPEDIA_API,
@@ -307,7 +331,7 @@ class SeedAgent:
             params = {
                 "query": query,
                 "mode": "artlist",
-                "maxrecords": 5,
+                "maxrecords": 15,
                 "format": "json",
                 "timespan": "7days",
             }
