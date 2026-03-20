@@ -121,14 +121,28 @@
         <!-- Right column: interactive console -->
         <div class="right-panel">
           <div class="console-box">
-            <!-- Upload area -->
-            <div class="console-section">
+            <!-- Seed mode selector -->
+            <div class="console-section seed-mode-section">
+              <div class="seed-mode-tabs">
+                <button
+                  v-for="m in seedModes"
+                  :key="m.value"
+                  class="seed-mode-tab"
+                  :class="{ active: seedMode === m.value }"
+                  @click="seedMode = m.value"
+                  :disabled="loading"
+                >{{ m.label }}</button>
+              </div>
+            </div>
+
+            <!-- Upload area (hidden for web_only) -->
+            <div class="console-section" v-if="seedMode !== 'web_only'">
               <div class="console-header">
                 <span class="console-label">01 / Reality Seed</span>
                 <span class="console-meta">Supported: PDF, MD, TXT</span>
               </div>
-              
-              <div 
+
+              <div
                 class="upload-zone"
                 :class="{ 'drag-over': isDragOver, 'has-files': files.length > 0 }"
                 @dragover.prevent="handleDragOver"
@@ -145,13 +159,13 @@
                   style="display: none"
                   :disabled="loading"
                 />
-                
+
                 <div v-if="files.length === 0" class="upload-placeholder">
                   <div class="upload-icon">↑</div>
                   <div class="upload-title">Drag & drop files</div>
                   <div class="upload-hint">or click to browse</div>
                 </div>
-                
+
                 <div v-else class="file-list">
                   <div v-for="(file, index) in files" :key="index" class="file-item">
                     <span class="file-icon">📄</span>
@@ -159,6 +173,28 @@
                     <button @click.stop="removeFile(index)" class="remove-btn">×</button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Web research query (shown for web_only and hybrid) -->
+            <div class="console-section" v-if="seedMode !== 'upload_only'">
+              <div class="console-header">
+                <span class="console-label">01 / Research Query</span>
+                <span class="console-meta">Natural language topic or question</span>
+              </div>
+              <div class="input-wrapper">
+                <textarea
+                  v-model="seedQuery"
+                  class="code-input"
+                  placeholder="// e.g. US-China trade tensions 2025 — tariffs, tech restrictions, economic impact"
+                  rows="3"
+                  :disabled="loading"
+                ></textarea>
+              </div>
+              <!-- Seed research status -->
+              <div v-if="seedResearching" class="seed-status">
+                <span class="seed-spinner"></span>
+                <span>Researching web sources...{{ seedSourceCount > 0 ? ` (${seedSourceCount} sources found)` : '' }}</span>
               </div>
             </div>
 
@@ -186,12 +222,13 @@
 
             <!-- Launch button -->
             <div class="console-section btn-section">
-              <button 
+              <button
                 class="start-engine-btn"
                 @click="startSimulation"
                 :disabled="!canSubmit || loading"
               >
                 <span v-if="!loading">Launch Engine</span>
+                <span v-else-if="seedResearching">Researching...</span>
                 <span v-else>Initializing...</span>
                 <span class="btn-arrow">→</span>
               </button>
@@ -210,6 +247,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
+import { seedAndGenerateOntology } from '../api/graph'
 
 const router = useRouter()
 
@@ -229,9 +267,24 @@ const isDragOver = ref(false)
 // File input ref
 const fileInput = ref(null)
 
+// Seed mode state
+const seedMode = ref('upload_only') // 'upload_only' | 'web_only' | 'hybrid'
+const seedModes = [
+  { value: 'web_only', label: 'Web only' },
+  { value: 'upload_only', label: 'Upload only' },
+  { value: 'hybrid', label: 'Hybrid' },
+]
+const seedQuery = ref('')
+const seedResearching = ref(false)
+const seedSourceCount = ref(0)
+
 // Computed: whether form can be submitted
 const canSubmit = computed(() => {
-  return formData.value.simulationRequirement.trim() !== '' && files.value.length > 0
+  const hasReq = formData.value.simulationRequirement.trim() !== ''
+  if (seedMode.value === 'upload_only') return hasReq && files.value.length > 0
+  if (seedMode.value === 'web_only') return hasReq && seedQuery.value.trim() !== ''
+  // hybrid
+  return hasReq && seedQuery.value.trim() !== '' && files.value.length > 0
 })
 
 // Trigger file input
@@ -289,23 +342,122 @@ const scrollToBottom = () => {
 }
 
 // Start simulation - navigate immediately; API calls happen in the Process page
-const startSimulation = () => {
+const startSimulation = async () => {
   if (!canSubmit.value || loading.value) return
-  
-  // Store pending upload data
-  import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
+
+  if (seedMode.value === 'upload_only') {
+    // Existing behavior: store pending upload and navigate
+    const { setPendingUpload } = await import('../store/pendingUpload.js')
     setPendingUpload(files.value, formData.value.simulationRequirement)
-    
-    // Navigate immediately to the Process page (using special identifier for new project)
-    router.push({
-      name: 'Process',
-      params: { projectId: 'new' }
-    })
-  })
+    router.push({ name: 'Process', params: { projectId: 'new' } })
+    return
+  }
+
+  // Web only or Hybrid: call seed API, then navigate to existing project
+  loading.value = true
+  seedResearching.value = true
+  seedSourceCount.value = 0
+  error.value = ''
+
+  try {
+    let fileText = ''
+    if (seedMode.value === 'hybrid' && files.value.length > 0) {
+      // Read file text client-side
+      fileText = await new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = (e) => resolve(e.target.result || '')
+        reader.onerror = () => resolve('')
+        reader.readAsText(files.value[0])
+      })
+    }
+
+    const payload = {
+      query: seedQuery.value.trim(),
+      simulation_requirement: formData.value.simulationRequirement.trim(),
+      project_name: seedQuery.value.trim().slice(0, 50),
+      mode: seedMode.value,
+      ...(fileText ? { file_text: fileText } : {}),
+    }
+
+    const res = await seedAndGenerateOntology(payload)
+    if (res.success && res.data?.project_id) {
+      seedSourceCount.value = res.data.seed_meta?.sources_count || 0
+      router.push({ name: 'Process', params: { projectId: res.data.project_id } })
+    } else {
+      error.value = res.error || 'Seed agent failed'
+    }
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    loading.value = false
+    seedResearching.value = false
+  }
 }
 </script>
 
 <style scoped>
+/* Seed mode selector */
+.seed-mode-section {
+  padding-bottom: 0;
+}
+
+.seed-mode-tabs {
+  display: flex;
+  background: #F5F5F5;
+  border-radius: 6px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.seed-mode-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.seed-mode-tab.active {
+  background: #000;
+  color: #FFF;
+}
+
+.seed-mode-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Seed research status */
+.seed-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #FF5722;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.seed-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #FFCCBC;
+  border-top-color: #FF5722;
+  border-radius: 50%;
+  animation: seed-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes seed-spin { to { transform: rotate(360deg); } }
+
 /* Global variables and resets */
 :root {
   --black: #000000;

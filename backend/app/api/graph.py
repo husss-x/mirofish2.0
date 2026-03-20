@@ -589,6 +589,87 @@ def get_graph_data(graph_id: str):
         }), 500
 
 
+@graph_bp.route('/seed', methods=['POST'])
+def seed_and_generate_ontology():
+    """
+    New endpoint for Seed Agent modes (web_only and hybrid).
+    Returns same shape as /ontology/generate so frontend flow is unchanged.
+    """
+    from app.services.seed_agent import SeedAgent
+
+    data = request.get_json()
+    query = data.get("query", "").strip()
+    simulation_requirement = data.get("simulation_requirement", "").strip()
+    project_name = data.get("project_name", query[:50])
+    mode = data.get("mode", "web_only")  # "web_only" | "hybrid"
+    file_text = data.get("file_text", "")  # only for hybrid
+
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+
+    try:
+        agent = SeedAgent()
+
+        if mode == "hybrid":
+            if not file_text:
+                return jsonify({"error": "file_text required for hybrid mode"}), 400
+            result = agent.run_hybrid(file_text, query, simulation_requirement)
+        else:
+            result = agent.run_web_only(query, simulation_requirement)
+
+        # From here, identical to existing /ontology/generate flow
+        project = ProjectManager.create_project(name=project_name)
+        project.simulation_requirement = simulation_requirement
+
+        # Write seed document directly (not via FileStorage)
+        files_dir = os.path.join(ProjectManager._get_project_dir(project.project_id), 'files')
+        os.makedirs(files_dir, exist_ok=True)
+        seed_path = os.path.join(files_dir, 'seed_document.md')
+        with open(seed_path, 'w', encoding='utf-8') as f:
+            f.write(result.markdown)
+        project.files = [{"filename": "seed_document.md", "size": len(result.markdown)}]
+
+        ProjectManager.save_extracted_text(project.project_id, result.markdown)
+        project.total_text_length = len(result.markdown)
+
+        ontology = OntologyGenerator().generate(
+            document_texts=[result.markdown],
+            simulation_requirement=simulation_requirement,
+        )
+
+        project.ontology = {
+            "entity_types": ontology.get("entity_types", []),
+            "edge_types": ontology.get("edge_types", []),
+        }
+        project.analysis_summary = ontology.get("analysis_summary", "")
+        project.status = ProjectStatus.ONTOLOGY_GENERATED
+        ProjectManager.save_project(project)
+
+        logger.info(f"[seed] Project created: {project.project_id}, mode={mode}")
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "project_id": project.project_id,
+                "project_name": project.name,
+                "ontology": project.ontology,
+                "analysis_summary": project.analysis_summary,
+                "files": project.files,
+                "total_text_length": project.total_text_length,
+                "seed_meta": {
+                    "mode": mode,
+                    "sources_count": len(result.sources),
+                    "elapsed_seconds": result.elapsed_seconds,
+                    "sources": result.sources[:10],
+                },
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Seed agent error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @graph_bp.route('/delete/<graph_id>', methods=['DELETE'])
 def delete_graph(graph_id: str):
     """

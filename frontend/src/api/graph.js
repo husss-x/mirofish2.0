@@ -68,3 +68,19 @@ export function getProject(projectId) {
     method: 'get'
   })
 }
+
+/**
+ * Seed Agent — generate ontology from web research or hybrid mode
+ * @param {Object} payload - { query, simulation_requirement, project_name, mode, file_text? }
+ * @returns {Promise}
+ */
+export const seedAndGenerateOntology = (payload) => {
+  // payload: { query, simulation_requirement, project_name, mode, file_text? }
+  return requestWithRetry(() =>
+    service({
+      url: '/api/graph/seed',
+      method: 'post',
+      data: payload
+    })
+  )
+}
