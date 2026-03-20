@@ -182,7 +182,7 @@
             <!-- Agent Config -->
             <div class="config-block">
               <div class="config-block-header">
-                <span class="config-block-title">Agent 配置</span>
+                <span class="config-block-title">Agent Config</span>
                 <span class="config-block-badge">{{ simulationConfig.agent_configs?.length || 0 }}</span>
               </div>
               <div class="agents-cards">
