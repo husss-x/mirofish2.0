@@ -358,11 +358,11 @@ class OasisProfileGenerator:
                 except Exception as e:
                     last_exception = e
                     if attempt < max_retries - 1:
-                        logger.debug(f"Zep节点搜索第 {attempt + 1} 次失败: {str(e)[:80]}, 重试中...")
+                        logger.debug(f"Zep node search attempt {attempt + 1} failed: {str(e)[:80]}, retrying...")
                         time.sleep(delay)
                         delay *= 2
                     else:
-                        logger.debug(f"Zep节点搜索在 {max_retries} 次尝试后仍失败: {e}")
+                        logger.debug(f"Zep node search failed after {max_retries} attempts: {e}")
             return None
         
         try:

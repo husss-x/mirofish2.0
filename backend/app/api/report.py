@@ -331,7 +331,7 @@ def get_report_by_simulation(simulation_id: str):
         if not report:
             return jsonify({
                 "success": False,
-                "error": f"该模拟暂无报告: {simulation_id}",
+                "error": f"No report found for simulation: {simulation_id}",
                 "has_report": False
             }), 404
         
@@ -342,7 +342,7 @@ def get_report_by_simulation(simulation_id: str):
         })
         
     except Exception as e:
-        logger.error(f"获取报告失败: {str(e)}")
+        logger.error(f"Failed to get report: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -382,7 +382,7 @@ def list_reports():
         })
         
     except Exception as e:
-        logger.error(f"列出报告失败: {str(e)}")
+        logger.error(f"Failed to list reports: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -403,9 +403,9 @@ def download_report(report_id: str):
         if not report:
             return jsonify({
                 "success": False,
-                "error": f"报告不存在: {report_id}"
+                "error": f"Report not found: {report_id}"
             }), 404
-        
+
         md_path = ReportManager._get_report_markdown_path(report_id)
         
         if not os.path.exists(md_path):
@@ -428,7 +428,7 @@ def download_report(report_id: str):
         )
         
     except Exception as e:
-        logger.error(f"下载报告失败: {str(e)}")
+        logger.error(f"Failed to download report: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
