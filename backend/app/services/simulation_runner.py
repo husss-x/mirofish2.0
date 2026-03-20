@@ -728,7 +728,7 @@ class SimulationRunner:
             # /F = force terminate, /T = terminate process tree (including child processes)
             logger.info(f"Terminating process tree (Windows): simulation={simulation_id}, pid={process.pid}")
             try:
-                # 先尝试优雅终止
+                # First attempt graceful termination
                 subprocess.run(
                     ['taskkill', '/PID', str(process.pid), '/T'],
                     capture_output=True,
@@ -1196,7 +1196,7 @@ class SimulationRunner:
         has_updaters = bool(cls._graph_memory_enabled)
         
         if not has_processes and not has_updaters:
-            return  # 没有需要清理的内容，静默返回
+            return  # Nothing to clean up, return silently
         
         logger.info("Cleaning up all simulation processes...")
         
@@ -1314,7 +1314,7 @@ class SimulationRunner:
         
         def cleanup_handler(signum=None, frame=None):
             """Signal handler: clean up simulation processes first, then call the original handler"""
-            # 只有在有进程需要清理时才打印日志
+            # Only log when there are processes that need cleaning up
             if cls._processes or cls._graph_memory_enabled:
                 logger.info(f"Received signal {signum}, starting cleanup...")
             cls.cleanup_all_simulations()

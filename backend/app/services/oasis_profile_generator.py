@@ -647,7 +647,7 @@ class OasisProfileGenerator:
         
         # 6. Try to extract partial info from the content
         bio_match = re.search(r'"bio"\s*:\s*"([^"]*)"', content)
-        persona_match = re.search(r'"persona"\s*:\s*"([^"]*)', content)  # 可能被截断
+        persona_match = re.search(r'"persona"\s*:\s*"([^"]*)', content)  # may be truncated
         
         bio = bio_match.group(1) if bio_match else (entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}")
         persona = persona_match.group(1) if persona_match else (entity_summary or f"{entity_name} is a {entity_type}.")
@@ -931,7 +931,7 @@ Important:
                 
             except Exception as e:
                 logger.error(f"Failed to generate persona for entity {entity.name}: {str(e)}")
-                # 创建一个基础profile
+                # Create a basic fallback profile
                 fallback_profile = OasisAgentProfile(
                     user_id=idx,
                     user_name=self._generate_username(entity.name),
@@ -1122,13 +1122,13 @@ Important:
         
         gender_lower = gender.lower().strip()
         
-        # Chinese mapping
+        # Mapping: legacy Chinese keys from Zep data + English keys
         gender_map = {
-            "男": "male",
-            "女": "female",
-            "机构": "other",
-            "其他": "other",
-            # English already present
+            "\u7537": "male",    # Chinese: male
+            "\u5973": "female",  # Chinese: female
+            "\u673a\u6784": "other",  # Chinese: institution/org
+            "\u5176\u4ed6": "other",  # Chinese: other
+            # English
             "male": "male",
             "female": "female",
             "other": "other",
