@@ -222,7 +222,7 @@ class SimulationManager:
         )
         
         self._save_simulation_state(state)
-        logger.info(f"创建模拟: {simulation_id}, project={project_id}, graph={graph_id}")
+        logger.info(f"Created simulation: {simulation_id}, project={project_id}, graph={graph_id}")
         
         return state
     
@@ -260,22 +260,22 @@ class SimulationManager:
         """
         state = self._load_simulation_state(simulation_id)
         if not state:
-            raise ValueError(f"模拟不存在: {simulation_id}")
-        
+            raise ValueError(f"Simulation not found: {simulation_id}")
+
         try:
             state.status = SimulationStatus.PREPARING
             self._save_simulation_state(state)
-            
+
             sim_dir = self._get_simulation_dir(simulation_id)
-            
-            # ========== 阶段1: 读取并过滤实体 ==========
+
+            # ========== Stage 1: Read and filter entities ==========
             if progress_callback:
-                progress_callback("reading", 0, "正在连接Zep图谱...")
-            
+                progress_callback("reading", 0, "Connecting to Zep graph...")
+
             reader = ZepEntityReader()
-            
+
             if progress_callback:
-                progress_callback("reading", 30, "正在读取节点数据...")
+                progress_callback("reading", 30, "Reading node data...")
             
             filtered = reader.filter_defined_entities(
                 graph_id=state.graph_id,
@@ -288,25 +288,25 @@ class SimulationManager:
             
             if progress_callback:
                 progress_callback(
-                    "reading", 100, 
-                    f"完成，共 {filtered.filtered_count} 个实体",
+                    "reading", 100,
+                    f"Done, found {filtered.filtered_count} entities",
                     current=filtered.filtered_count,
                     total=filtered.filtered_count
                 )
-            
+
             if filtered.filtered_count == 0:
                 state.status = SimulationStatus.FAILED
-                state.error = "没有找到符合条件的实体，请检查图谱是否正确构建"
+                state.error = "No matching entities found. Please check that the graph is built correctly."
                 self._save_simulation_state(state)
                 return state
-            
-            # ========== 阶段2: 生成Agent Profile ==========
+
+            # ========== Stage 2: Generate Agent Profiles ==========
             total_entities = len(filtered.entities)
-            
+
             if progress_callback:
                 progress_callback(
-                    "generating_profiles", 0, 
-                    "开始生成...",
+                    "generating_profiles", 0,
+                    "Starting generation...",
                     current=0,
                     total=total_entities
                 )
@@ -351,8 +351,8 @@ class SimulationManager:
             # Reddit 已经在生成过程中实时保存了，这里再保存一次确保完整性
             if progress_callback:
                 progress_callback(
-                    "generating_profiles", 95, 
-                    "保存Profile文件...",
+                    "generating_profiles", 95,
+                    "Saving profile files...",
                     current=total_entities,
                     total=total_entities
                 )
@@ -374,27 +374,27 @@ class SimulationManager:
             
             if progress_callback:
                 progress_callback(
-                    "generating_profiles", 100, 
-                    f"完成，共 {len(profiles)} 个Profile",
+                    "generating_profiles", 100,
+                    f"Done, generated {len(profiles)} profiles",
                     current=len(profiles),
                     total=len(profiles)
                 )
-            
-            # ========== 阶段3: LLM智能生成模拟配置 ==========
+
+            # ========== Stage 3: LLM-based simulation config generation ==========
             if progress_callback:
                 progress_callback(
-                    "generating_config", 0, 
-                    "正在分析模拟需求...",
+                    "generating_config", 0,
+                    "Analyzing simulation requirements...",
                     current=0,
                     total=3
                 )
-            
+
             config_generator = SimulationConfigGenerator()
-            
+
             if progress_callback:
                 progress_callback(
-                    "generating_config", 30, 
-                    "正在调用LLM生成配置...",
+                    "generating_config", 30,
+                    "Calling LLM to generate config...",
                     current=1,
                     total=3
                 )
@@ -412,8 +412,8 @@ class SimulationManager:
             
             if progress_callback:
                 progress_callback(
-                    "generating_config", 70, 
-                    "正在保存配置文件...",
+                    "generating_config", 70,
+                    "Saving config file...",
                     current=2,
                     total=3
                 )
@@ -428,8 +428,8 @@ class SimulationManager:
             
             if progress_callback:
                 progress_callback(
-                    "generating_config", 100, 
-                    "配置生成完成",
+                    "generating_config", 100,
+                    "Config generation complete",
                     current=3,
                     total=3
                 )
@@ -441,13 +441,13 @@ class SimulationManager:
             state.status = SimulationStatus.READY
             self._save_simulation_state(state)
             
-            logger.info(f"模拟准备完成: {simulation_id}, "
+            logger.info(f"Simulation preparation complete: {simulation_id}, "
                        f"entities={state.entities_count}, profiles={state.profiles_count}")
             
             return state
             
         except Exception as e:
-            logger.error(f"模拟准备失败: {simulation_id}, error={str(e)}")
+            logger.error(f"Simulation preparation failed: {simulation_id}, error={str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             state.status = SimulationStatus.FAILED
@@ -481,8 +481,8 @@ class SimulationManager:
         """获取模拟的Agent Profile"""
         state = self._load_simulation_state(simulation_id)
         if not state:
-            raise ValueError(f"模拟不存在: {simulation_id}")
-        
+            raise ValueError(f"Simulation not found: {simulation_id}")
+
         sim_dir = self._get_simulation_dir(simulation_id)
         profile_path = os.path.join(sim_dir, f"{platform}_profiles.json")
         
@@ -519,10 +519,10 @@ class SimulationManager:
                 "parallel": f"python {scripts_dir}/run_parallel_simulation.py --config {config_path}",
             },
             "instructions": (
-                f"1. 激活conda环境: conda activate MiroFish\n"
-                f"2. 运行模拟 (脚本位于 {scripts_dir}):\n"
-                f"   - 单独运行Twitter: python {scripts_dir}/run_twitter_simulation.py --config {config_path}\n"
-                f"   - 单独运行Reddit: python {scripts_dir}/run_reddit_simulation.py --config {config_path}\n"
-                f"   - 并行运行双平台: python {scripts_dir}/run_parallel_simulation.py --config {config_path}"
+                f"1. Activate conda environment: conda activate MiroFish\n"
+                f"2. Run simulation (scripts located in {scripts_dir}):\n"
+                f"   - Run Twitter only: python {scripts_dir}/run_twitter_simulation.py --config {config_path}\n"
+                f"   - Run Reddit only: python {scripts_dir}/run_reddit_simulation.py --config {config_path}\n"
+                f"   - Run both platforms in parallel: python {scripts_dir}/run_parallel_simulation.py --config {config_path}"
             )
         }
