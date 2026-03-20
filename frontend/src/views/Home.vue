@@ -121,7 +121,7 @@
         <!-- Right column: interactive console -->
         <div class="right-panel">
           <div class="console-box">
-            <!-- 上传区域 -->
+            <!-- Upload area -->
             <div class="console-section">
               <div class="console-header">
                 <span class="console-label">01 / Reality Seed</span>
