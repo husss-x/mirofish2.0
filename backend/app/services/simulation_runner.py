@@ -1247,14 +1247,14 @@ class SimulationRunner:
                             state_data['updated_at'] = datetime.now().isoformat()
                             with open(state_file, 'w', encoding='utf-8') as f:
                                 json.dump(state_data, f, indent=2, ensure_ascii=False)
-                            logger.info(f"已更新 state.json 状态为 stopped: {simulation_id}")
+                            logger.info(f"Updated state.json status to stopped: {simulation_id}")
                         else:
-                            logger.warning(f"state.json 不存在: {state_file}")
+                            logger.warning(f"state.json not found: {state_file}")
                     except Exception as state_err:
-                        logger.warning(f"更新 state.json 失败: {simulation_id}, error={state_err}")
+                        logger.warning(f"Failed to update state.json: {simulation_id}, error={state_err}")
                         
             except Exception as e:
-                logger.error(f"清理进程失败: {simulation_id}, error={e}")
+                logger.error(f"Failed to clean up process: {simulation_id}, error={e}")
         
         # 清理文件句柄
         for simulation_id, file_handle in list(cls._stdout_files.items()):
@@ -1277,7 +1277,7 @@ class SimulationRunner:
         cls._processes.clear()
         cls._action_queues.clear()
         
-        logger.info("模拟进程清理完成")
+        logger.info("Simulation process cleanup complete")
     
     @classmethod
     def register_cleanup(cls):
