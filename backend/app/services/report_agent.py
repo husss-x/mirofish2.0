@@ -1075,7 +1075,7 @@ class ReportAgent:
         """
         tool_calls = []
 
-        # 格式1: XML风格（标准格式）
+        # Format 1: XML-style (standard format)
         xml_pattern = r'<tool_call>\s*(\{.*?\})\s*</tool_call>'
         for match in re.finditer(xml_pattern, response, re.DOTALL):
             try:
@@ -1087,8 +1087,8 @@ class ReportAgent:
         if tool_calls:
             return tool_calls
 
-        # 格式2: 兜底 - LLM 直接输出裸 JSON（没包 <tool_call> 标签）
-        # 只在格式1未匹配时尝试，避免误匹配正文中的 JSON
+        # Format 2: Fallback - LLM directly outputs bare JSON (no <tool_call> tags)
+        # Only tried when format 1 did not match, to avoid false positives from JSON in body text
         stripped = response.strip()
         if stripped.startswith('{') and stripped.endswith('}'):
             try:
@@ -1099,7 +1099,7 @@ class ReportAgent:
             except json.JSONDecodeError:
                 pass
 
-        # 响应可能包含思考文字 + 裸 JSON，尝试提取最后一个 JSON 对象
+        # Response may contain reasoning text + bare JSON; try extracting the last JSON object
         json_pattern = r'(\{"(?:name|tool)"\s*:.*?\})\s*$'
         match = re.search(json_pattern, stripped, re.DOTALL)
         if match:
@@ -1113,11 +1113,11 @@ class ReportAgent:
         return tool_calls
 
     def _is_valid_tool_call(self, data: dict) -> bool:
-        """校验解析出的 JSON 是否是合法的工具调用"""
-        # 支持 {"name": ..., "parameters": ...} 和 {"tool": ..., "params": ...} 两种键名
+        """Validate whether the parsed JSON is a valid tool call"""
+        # Supports both {"name": ..., "parameters": ...} and {"tool": ..., "params": ...} key names
         tool_name = data.get("name") or data.get("tool")
         if tool_name and tool_name in self.VALID_TOOL_NAMES:
-            # 统一键名为 name / parameters
+            # Normalize keys to name / parameters
             if "tool" in data:
                 data["name"] = data.pop("tool")
             if "params" in data and "parameters" not in data:
@@ -1126,29 +1126,29 @@ class ReportAgent:
         return False
     
     def _get_tools_description(self) -> str:
-        """生成工具描述文本"""
-        desc_parts = ["可用工具："]
+        """Generate tool description text"""
+        desc_parts = ["Available tools:"]
         for name, tool in self.tools.items():
             params_desc = ", ".join([f"{k}: {v}" for k, v in tool["parameters"].items()])
             desc_parts.append(f"- {name}: {tool['description']}")
             if params_desc:
-                desc_parts.append(f"  参数: {params_desc}")
+                desc_parts.append(f"  Parameters: {params_desc}")
         return "\n".join(desc_parts)
     
     def plan_outline(
-        self, 
+        self,
         progress_callback: Optional[Callable] = None
     ) -> ReportOutline:
         """
-        规划报告大纲
-        
-        使用LLM分析模拟需求，规划报告的目录结构
-        
+        Plan the report outline
+
+        Uses an LLM to analyze simulation requirements and plan the report's structure
+
         Args:
-            progress_callback: 进度回调函数
-            
+            progress_callback: Progress callback function
+
         Returns:
-            ReportOutline: 报告大纲
+            ReportOutline: The report outline
         """
         logger.info("Starting report outline planning...")
         
@@ -1182,45 +1182,45 @@ class ReportAgent:
                 ],
                 temperature=0.3
             )
-            
+
             if progress_callback:
                 progress_callback("planning", 80, "Parsing outline structure...")
-            
-            # 解析大纲
+
+            # Parse the outline
             sections = []
             for section_data in response.get("sections", []):
                 sections.append(ReportSection(
                     title=section_data.get("title", ""),
                     content=""
                 ))
-            
+
             outline = ReportOutline(
-                title=response.get("title", "模拟分析报告"),
+                title=response.get("title", "Simulation Analysis Report"),
                 summary=response.get("summary", ""),
                 sections=sections
             )
-            
+
             if progress_callback:
                 progress_callback("planning", 100, "Outline planning complete")
-            
+
             logger.info(f"Outline planning complete: {len(sections)} sections")
             return outline
-            
+
         except Exception as e:
             logger.error(f"Outline planning failed: {str(e)}")
-            # 返回默认大纲（3个章节，作为fallback）
+            # Return a default outline (3 sections, as fallback)
             return ReportOutline(
-                title="未来预测报告",
-                summary="基于模拟预测的未来趋势与风险分析",
+                title="Future Prediction Report",
+                summary="Analysis of future trends and risks based on simulation predictions",
                 sections=[
-                    ReportSection(title="预测场景与核心发现"),
-                    ReportSection(title="人群行为预测分析"),
-                    ReportSection(title="趋势展望与风险提示")
+                    ReportSection(title="Prediction Scenario and Core Findings"),
+                    ReportSection(title="Population Behavior Prediction Analysis"),
+                    ReportSection(title="Trend Outlook and Risk Warnings")
                 ]
             )
     
     def _generate_section_react(
-        self, 
+        self,
         section: ReportSection,
         outline: ReportOutline,
         previous_sections: List[str],
@@ -1228,24 +1228,24 @@ class ReportAgent:
         section_index: int = 0
     ) -> str:
         """
-        使用ReACT模式生成单个章节内容
-        
-        ReACT循环：
-        1. Thought（思考）- 分析需要什么信息
-        2. Action（行动）- 调用工具获取信息
-        3. Observation（观察）- 分析工具返回结果
-        4. 重复直到信息足够或达到最大次数
-        5. Final Answer（最终回答）- 生成章节内容
-        
+        Generate a single section's content using the ReACT pattern.
+
+        ReACT loop:
+        1. Thought - analyze what information is needed
+        2. Action - call a tool to retrieve information
+        3. Observation - analyze the tool's return result
+        4. Repeat until information is sufficient or the maximum number of calls is reached
+        5. Final Answer - generate section content
+
         Args:
-            section: 要生成的章节
-            outline: 完整大纲
-            previous_sections: 之前章节的内容（用于保持连贯性）
-            progress_callback: 进度回调
-            section_index: 章节索引（用于日志记录）
-            
+            section: The section to generate
+            outline: The complete outline
+            previous_sections: Content of previous sections (for maintaining coherence)
+            progress_callback: Progress callback
+            section_index: Section index (for logging)
+
         Returns:
-            章节内容（Markdown格式）
+            Section content (Markdown format)
         """
         logger.info(f"ReACT generating section: {section.title}")
         
@@ -1261,16 +1261,16 @@ class ReportAgent:
             tools_description=self._get_tools_description(),
         )
 
-        # 构建用户prompt - 每个已完成章节各传入最大4000字
+        # Build user prompt - pass at most 4000 chars per completed section
         if previous_sections:
             previous_parts = []
             for sec in previous_sections:
-                # 每个章节最多4000字
+                # Maximum 4000 chars per section
                 truncated = sec[:4000] + "..." if len(sec) > 4000 else sec
                 previous_parts.append(truncated)
             previous_content = "\n\n---\n\n".join(previous_parts)
         else:
-            previous_content = "（这是第一个章节）"
+            previous_content = "(This is the first section)"
         
         user_prompt = SECTION_USER_PROMPT_TEMPLATE.format(
             previous_content=previous_content,
@@ -1282,16 +1282,16 @@ class ReportAgent:
             {"role": "user", "content": user_prompt}
         ]
         
-        # ReACT循环
+        # ReACT loop
         tool_calls_count = 0
-        max_iterations = 5  # 最大迭代轮数
-        min_tool_calls = 3  # 最少工具调用次数
-        conflict_retries = 0  # 工具调用与Final Answer同时出现的连续冲突次数
-        used_tools = set()  # 记录已调用过的工具名
+        max_iterations = 5  # Maximum number of iterations
+        min_tool_calls = 3  # Minimum number of tool calls
+        conflict_retries = 0  # Consecutive conflict count when tool call and Final Answer appear together
+        used_tools = set()  # Track tool names that have been called
         all_tools = {"insight_forge", "panorama_search", "quick_search", "interview_agents"}
 
-        # 报告上下文，用于InsightForge的子问题生成
-        report_context = f"章节标题: {section.title}\n模拟需求: {self.simulation_requirement}"
+        # Report context, used for InsightForge sub-question generation
+        report_context = f"Section title: {section.title}\nSimulation requirement: {self.simulation_requirement}"
         
         for iteration in range(max_iterations):
             if progress_callback:
@@ -1308,15 +1308,15 @@ class ReportAgent:
                 max_tokens=4096
             )
 
-            # 检查 LLM 返回是否为 None（API 异常或内容为空）
+            # Check whether LLM returned None (API error or empty content)
             if response is None:
                 logger.warning(f"Section {section.title} iteration {iteration + 1}: LLM returned None")
-                # 如果还有迭代次数，添加消息并重试
+                # If there are remaining iterations, add a message and retry
                 if iteration < max_iterations - 1:
-                    messages.append({"role": "assistant", "content": "（响应为空）"})
-                    messages.append({"role": "user", "content": "请继续生成内容。"})
+                    messages.append({"role": "assistant", "content": "(Empty response)"})
+                    messages.append({"role": "user", "content": "Please continue generating content."})
                     continue
-                # 最后一次迭代也返回 None，跳出循环进入强制收尾
+                # Last iteration also returned None — break out and force a final answer
                 break
 
             logger.debug(f"LLM response: {response[:200]}...")
@@ -1326,7 +1326,7 @@ class ReportAgent:
             has_tool_calls = bool(tool_calls)
             has_final_answer = "Final Answer:" in response
 
-            # ── 冲突处理：LLM 同时输出了工具调用和 Final Answer ──
+            # ── Conflict handling: LLM output both a tool call and a Final Answer ──
             if has_tool_calls and has_final_answer:
                 conflict_retries += 1
                 logger.warning(
@@ -1335,21 +1335,21 @@ class ReportAgent:
                 )
 
                 if conflict_retries <= 2:
-                    # 前两次：丢弃本次响应，要求 LLM 重新回复
+                    # First two times: discard this response, ask LLM to reply again
                     messages.append({"role": "assistant", "content": response})
                     messages.append({
                         "role": "user",
                         "content": (
-                            "【格式错误】你在一次回复中同时包含了工具调用和 Final Answer，这是不允许的。\n"
-                            "每次回复只能做以下两件事之一：\n"
-                            "- 调用一个工具（输出一个 <tool_call> 块，不要写 Final Answer）\n"
-                            "- 输出最终内容（以 'Final Answer:' 开头，不要包含 <tool_call>）\n"
-                            "请重新回复，只做其中一件事。"
+                            "[Format Error] Your reply contained both a tool call and a Final Answer, which is not allowed.\n"
+                            "Each reply must do exactly one of the following:\n"
+                            "- Call one tool (output one <tool_call> block, do not write Final Answer)\n"
+                            "- Output the final content (start with 'Final Answer:', do not include <tool_call>)\n"
+                            "Please reply again doing only one of these."
                         ),
                     })
                     continue
                 else:
-                    # 第三次：降级处理，截断到第一个工具调用，强制执行
+                    # Third time: degrade — truncate to the first tool call and force execute
                     logger.warning(
                         f"Section {section.title}: {conflict_retries} consecutive conflicts, "
                         "falling back to executing first tool call only"
@@ -1373,13 +1373,13 @@ class ReportAgent:
                     has_final_answer=has_final_answer
                 )
 
-            # ── 情况1：LLM 输出了 Final Answer ──
+            # ── Case 1: LLM output a Final Answer ──
             if has_final_answer:
-                # 工具调用次数不足，拒绝并要求继续调工具
+                # Insufficient tool calls — reject and require more tool calls
                 if tool_calls_count < min_tool_calls:
                     messages.append({"role": "assistant", "content": response})
                     unused_tools = all_tools - used_tools
-                    unused_hint = f"（这些工具还未使用，推荐用一下他们: {', '.join(unused_tools)}）" if unused_tools else ""
+                    unused_hint = f"(These tools have not been used yet, recommended to try them: {', '.join(unused_tools)})" if unused_tools else ""
                     messages.append({
                         "role": "user",
                         "content": REACT_INSUFFICIENT_TOOLS_MSG.format(
@@ -1403,9 +1403,9 @@ class ReportAgent:
                     )
                 return final_answer
 
-            # ── 情况2：LLM 尝试调用工具 ──
+            # ── Case 2: LLM attempted to call a tool ──
             if has_tool_calls:
-                # 工具额度已耗尽 → 明确告知，要求输出 Final Answer
+                # Tool budget exhausted → notify explicitly, require Final Answer output
                 if tool_calls_count >= self.MAX_TOOL_CALLS_PER_SECTION:
                     messages.append({"role": "assistant", "content": response})
                     messages.append({
@@ -1417,7 +1417,7 @@ class ReportAgent:
                     })
                     continue
 
-                # 只执行第一个工具调用
+                # Execute only the first tool call
                 call = tool_calls[0]
                 if len(tool_calls) > 1:
                     logger.info(f"LLM attempted {len(tool_calls)} tool calls, executing only the first: {call['name']}")
@@ -1449,11 +1449,11 @@ class ReportAgent:
                 tool_calls_count += 1
                 used_tools.add(call['name'])
 
-                # 构建未使用工具提示
+                # Build hint for unused tools
                 unused_tools = all_tools - used_tools
                 unused_hint = ""
                 if unused_tools and tool_calls_count < self.MAX_TOOL_CALLS_PER_SECTION:
-                    unused_hint = REACT_UNUSED_TOOLS_HINT.format(unused_list="、".join(unused_tools))
+                    unused_hint = REACT_UNUSED_TOOLS_HINT.format(unused_list=", ".join(unused_tools))
 
                 messages.append({"role": "assistant", "content": response})
                 messages.append({
@@ -1469,13 +1469,13 @@ class ReportAgent:
                 })
                 continue
 
-            # ── 情况3：既没有工具调用，也没有 Final Answer ──
+            # ── Case 3: No tool call and no Final Answer ──
             messages.append({"role": "assistant", "content": response})
 
             if tool_calls_count < min_tool_calls:
-                # 工具调用次数不足，推荐未用过的工具
+                # Insufficient tool calls — recommend unused tools
                 unused_tools = all_tools - used_tools
-                unused_hint = f"（这些工具还未使用，推荐用一下他们: {', '.join(unused_tools)}）" if unused_tools else ""
+                unused_hint = f"(These tools have not been used yet, recommended to try them: {', '.join(unused_tools)})" if unused_tools else ""
 
                 messages.append({
                     "role": "user",
@@ -1487,8 +1487,8 @@ class ReportAgent:
                 })
                 continue
 
-            # 工具调用已足够，LLM 输出了内容但没带 "Final Answer:" 前缀
-            # 直接将这段内容作为最终答案，不再空转
+            # Sufficient tool calls made; LLM output content without a "Final Answer:" prefix
+            # Treat the output directly as the final answer without spinning further
             logger.info(f"Section {section.title}: no 'Final Answer:' prefix detected, adopting LLM output as final content (tool calls: {tool_calls_count})")
             final_answer = response.strip()
 
@@ -1501,7 +1501,7 @@ class ReportAgent:
                 )
             return final_answer
         
-        # 达到最大迭代次数，强制生成内容
+        # Reached max iterations, force content generation
         logger.warning(f"Section {section.title} reached max iterations, forcing generation")
         messages.append({"role": "user", "content": REACT_FORCE_FINAL_MSG})
         
@@ -1511,7 +1511,7 @@ class ReportAgent:
             max_tokens=4096
         )
 
-        # 检查强制收尾时 LLM 返回是否为 None
+        # Check whether LLM returned None during forced completion
         if response is None:
             logger.error(f"Section {section.title}: LLM returned None during forced completion, using default error message")
             final_answer = f"(Section generation failed: LLM returned empty response, please retry later)"
@@ -1520,7 +1520,7 @@ class ReportAgent:
         else:
             final_answer = response
         
-        # 记录章节内容生成完成日志
+        # Record section content generation complete log
         if self.report_logger:
             self.report_logger.log_section_content(
                 section_title=section.title,
@@ -1528,38 +1528,38 @@ class ReportAgent:
                 content=final_answer,
                 tool_calls_count=tool_calls_count
             )
-        
+
         return final_answer
-    
+
     def generate_report(
-        self, 
+        self,
         progress_callback: Optional[Callable[[str, int, str], None]] = None,
         report_id: Optional[str] = None
     ) -> Report:
         """
-        生成完整报告（分章节实时输出）
-        
-        每个章节生成完成后立即保存到文件夹，不需要等待整个报告完成。
-        文件结构：
+        Generate the complete report (streaming output section by section).
+
+        Each section is saved to the folder immediately after generation, without waiting for the full report.
+        File structure:
         reports/{report_id}/
-            meta.json       - 报告元信息
-            outline.json    - 报告大纲
-            progress.json   - 生成进度
-            section_01.md   - 第1章节
-            section_02.md   - 第2章节
+            meta.json       - Report metadata
+            outline.json    - Report outline
+            progress.json   - Generation progress
+            section_01.md   - Section 1
+            section_02.md   - Section 2
             ...
-            full_report.md  - 完整报告
-        
+            full_report.md  - Complete report
+
         Args:
-            progress_callback: 进度回调函数 (stage, progress, message)
-            report_id: 报告ID（可选，如果不传则自动生成）
-            
+            progress_callback: Progress callback function (stage, progress, message)
+            report_id: Report ID (optional; auto-generated if not provided)
+
         Returns:
-            Report: 完整报告
+            Report: The complete report
         """
         import uuid
         
-        # 如果没有传入 report_id，则自动生成
+        # Auto-generate report_id if not provided
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
         start_time = datetime.now()
