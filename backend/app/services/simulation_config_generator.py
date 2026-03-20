@@ -458,13 +458,13 @@ class SimulationConfigGenerator:
                     logger.warning(f"LLM output truncated (attempt {attempt+1})")
                     content = self._fix_truncated_json(content)
                 
-                # 尝试解析JSON
+                # Try to parse JSON
                 try:
                     return json.loads(content)
                 except json.JSONDecodeError as e:
                     logger.warning(f"JSON parsing failed (attempt {attempt+1}): {str(e)[:80]}")
-                    
-                    # 尝试修复JSON
+
+                    # Try to fix JSON
                     fixed = self._try_fix_config_json(content)
                     if fixed:
                         return fixed
@@ -480,28 +480,28 @@ class SimulationConfigGenerator:
         raise last_error or Exception("LLM call failed")
     
     def _fix_truncated_json(self, content: str) -> str:
-        """修复被截断的JSON"""
+        """Fix truncated JSON"""
         content = content.strip()
-        
-        # 计算未闭合的括号
+
+        # Count unclosed brackets
         open_braces = content.count('{') - content.count('}')
         open_brackets = content.count('[') - content.count(']')
-        
-        # 检查是否有未闭合的字符串
+
+        # Check for unclosed strings
         if content and content[-1] not in '",}]':
             content += '"'
-        
-        # 闭合括号
+
+        # Close brackets
         content += ']' * open_brackets
         content += '}' * open_braces
         
         return content
     
     def _try_fix_config_json(self, content: str) -> Optional[Dict[str, Any]]:
-        """尝试修复配置JSON"""
+        """Try to fix config JSON"""
         import re
-        
-        # 修复被截断的情况
+
+        # Fix truncated case
         content = self._fix_truncated_json(content)
         
         # 提取JSON部分
