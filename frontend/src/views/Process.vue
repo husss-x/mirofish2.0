@@ -1,10 +1,10 @@
 <template>
   <div class="process-page">
-    <!-- 顶部导航栏 -->
+    <!-- Top navigation bar -->
     <nav class="navbar">
       <div class="nav-brand" @click="goHome">MIROFISH</div>
       
-      <!-- 中间步骤指示器 -->
+      <!-- Center step indicator -->
       <div class="nav-center">
         <div class="step-badge">STEP 01</div>
         <div class="step-name">Graph Build</div>
@@ -16,9 +16,9 @@
       </div>
     </nav>
 
-    <!-- 主内容区 -->
+    <!-- Main content area -->
     <div class="main-content">
-      <!-- 左侧: 实时图谱展示 -->
+      <!-- Left side: real-time graph display -->
       <div class="left-panel" :class="{ 'full-screen': isFullScreen }">
         <div class="panel-header">
           <div class="header-left">
@@ -44,16 +44,16 @@
         </div>
         
         <div class="graph-container" ref="graphContainer">
-          <!-- 图谱可视化（只要有数据就显示） -->
+          <!-- Graph visualization (shown as long as data is available) -->
           <div v-if="graphData" class="graph-view">
             <svg ref="graphSvg" class="graph-svg"></svg>
-            <!-- 构建中提示 -->
+            <!-- Building hint -->
             <div v-if="currentPhase === 1" class="graph-building-hint">
               <span class="building-dot"></span>
               Updating in real time...
             </div>
             
-            <!-- 节点/边详情面板 -->
+            <!-- Node/edge detail panel -->
             <div v-if="selectedItem" class="detail-panel">
               <div class="detail-panel-header">
                 <span class="detail-title">{{ selectedItem.type === 'node' ? 'Node Details' : 'Relationship' }}</span>
@@ -63,7 +63,7 @@
                 <button class="detail-close" @click="closeDetailPanel">×</button>
               </div>
               
-              <!-- 节点详情 -->
+              <!-- Node details -->
               <div v-if="selectedItem.type === 'node'" class="detail-content">
                 <div class="detail-row">
                   <span class="detail-label">Name:</span>
@@ -104,9 +104,9 @@
                 </div>
               </div>
               
-              <!-- 边详情 -->
+              <!-- Edge details -->
               <div v-else class="detail-content">
-                <!-- 关系展示 -->
+                <!-- Relationship display -->
                 <div class="edge-relation">
                   <span class="edge-source">{{ selectedItem.data.source_name || selectedItem.data.source_node_name }}</span>
                   <span class="edge-arrow">→</span>
@@ -164,7 +164,7 @@
             </div>
           </div>
           
-          <!-- 加载状态 -->
+          <!-- Loading state -->
           <div v-else-if="graphLoading" class="graph-loading">
             <div class="loading-animation">
               <div class="loading-ring"></div>
@@ -174,7 +174,7 @@
             <p class="loading-text">Loading graph data...</p>
           </div>
           
-          <!-- 等待构建 -->
+          <!-- Waiting for build -->
           <div v-else-if="currentPhase < 1" class="graph-waiting">
             <div class="waiting-icon">
               <svg viewBox="0 0 100 100" class="network-icon">
@@ -193,7 +193,7 @@
             <p class="waiting-hint">Graph construction will begin automatically when done</p>
           </div>
           
-          <!-- 构建中但还没有数据 -->
+          <!-- Building but no data yet -->
           <div v-else-if="currentPhase === 1 && !graphData" class="graph-waiting">
             <div class="loading-animation">
               <div class="loading-ring"></div>
@@ -204,14 +204,14 @@
             <p class="waiting-hint">Data will appear soon...</p>
           </div>
           
-          <!-- 错误状态 -->
+          <!-- Error state -->
           <div v-else-if="error" class="graph-error">
             <span class="error-icon">⚠</span>
             <p>{{ error }}</p>
           </div>
         </div>
         
-        <!-- 图谱图例 -->
+        <!-- Graph legend -->
         <div v-if="graphData" class="graph-legend">
           <div class="legend-item" v-for="type in entityTypes" :key="type.name">
             <span class="legend-dot" :style="{ background: type.color }"></span>
@@ -221,7 +221,7 @@
         </div>
       </div>
 
-      <!-- 右侧: 构建流程详情 -->
+      <!-- Right side: build process details -->
       <div class="right-panel" :class="{ 'hidden': isFullScreen }">
         <div class="panel-header dark-header">
           <span class="header-icon">▣</span>
@@ -229,7 +229,7 @@
         </div>
 
         <div class="process-content">
-          <!-- 阶段1: 本体生成 -->
+          <!-- Phase 1: Ontology generation -->
           <div class="process-phase" :class="{ 'active': currentPhase === 0, 'completed': currentPhase > 0 }">
             <div class="phase-header">
               <span class="phase-num">01</span>
@@ -250,7 +250,7 @@
                 </div>
               </div>
               
-              <!-- 本体生成进度 -->
+              <!-- Ontology generation progress -->
               <div class="detail-section" v-if="ontologyProgress && currentPhase === 0">
                 <div class="detail-label">Generation Progress</div>
                 <div class="ontology-progress">
@@ -259,7 +259,7 @@
                 </div>
               </div>
               
-              <!-- 已生成的本体信息 -->
+              <!-- Generated ontology information -->
               <div class="detail-section" v-if="projectData?.ontology">
                 <div class="detail-label">Entity Types ({{ projectData.ontology.entity_types?.length || 0 }})</div>
                 <div class="entity-tags">
@@ -293,14 +293,14 @@
                 </div>
               </div>
               
-              <!-- 等待状态 -->
+              <!-- Waiting state -->
               <div class="detail-section waiting-state" v-if="!projectData?.ontology && currentPhase === 0 && !ontologyProgress">
                 <div class="waiting-hint">Waiting for ontology generation...</div>
               </div>
             </div>
           </div>
 
-          <!-- 阶段2: 图谱构建 -->
+          <!-- Phase 2: Graph build -->
           <div class="process-phase" :class="{ 'active': currentPhase === 1, 'completed': currentPhase > 1 }">
             <div class="phase-header">
               <span class="phase-num">02</span>
@@ -321,12 +321,12 @@
                 </div>
               </div>
               
-              <!-- 等待本体完成 -->
+              <!-- Waiting for ontology to complete -->
               <div class="detail-section waiting-state" v-if="currentPhase < 1">
                 <div class="waiting-hint">Waiting for ontology to complete...</div>
               </div>
               
-              <!-- 构建进度 -->
+              <!-- Build progress -->
               <div class="detail-section" v-if="buildProgress && currentPhase >= 1">
                 <div class="detail-label">Build Progress</div>
                 <div class="progress-bar">
@@ -358,7 +358,7 @@
             </div>
           </div>
 
-          <!-- 阶段3: 完成 -->
+          <!-- Phase 3: Complete -->
           <div class="process-phase" :class="{ 'active': currentPhase === 2, 'completed': currentPhase > 2 }">
             <div class="phase-header">
               <span class="phase-num">03</span>
