@@ -264,40 +264,37 @@ class SeedAgent:
 
     def _search_wikipedia(self, sub_queries: list[str]) -> list[dict]:
         """Fetch Wikipedia summaries for key entities."""
+        import requests
+        from urllib.parse import quote
+        headers = {"User-Agent": "MiroFish/2.0"}
         results = []
         for q in sub_queries[:3]:
             try:
-                params = {
-                    "action": "query",
-                    "list": "search",
-                    "srsearch": q,
-                    "format": "json",
-                    "srlimit": 1,
-                }
-                resp = httpx.get(WIKIPEDIA_API, params=params, timeout=10)
-                data = resp.json()
-                pages = data.get("query", {}).get("search", [])
+                search_resp = requests.get(
+                    WIKIPEDIA_API,
+                    params={
+                        "action": "query",
+                        "list": "search",
+                        "srsearch": q,
+                        "format": "json",
+                        "srlimit": 1,
+                    },
+                    headers=headers,
+                    timeout=10,
+                )
+                pages = search_resp.json().get("query", {}).get("search", [])
                 if pages:
-                    page_id = pages[0]["pageid"]
-                    detail = httpx.get(
-                        WIKIPEDIA_API,
-                        params={
-                            "action": "query",
-                            "pageids": page_id,
-                            "prop": "extracts",
-                            "exintro": True,
-                            "format": "json",
-                        },
+                    title = pages[0]["title"]
+                    summary_resp = requests.get(
+                        f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(title)}",
+                        headers=headers,
                         timeout=10,
-                    ).json()
-                    extract = (
-                        detail["query"]["pages"][str(page_id)]
-                        .get("extract", "")[:2000]
                     )
+                    extract = summary_resp.json().get("extract", "")[:2000]
                     results.append({
                         "source": "wikipedia",
-                        "url": f"https://en.wikipedia.org/?curid={page_id}",
-                        "title": pages[0]["title"],
+                        "url": f"https://en.wikipedia.org/wiki/{quote(title)}",
+                        "title": title,
                         "content": extract,
                     })
             except Exception as e:
@@ -312,10 +309,18 @@ class SeedAgent:
                 "mode": "artlist",
                 "maxrecords": 5,
                 "format": "json",
-                "timespan": "7d",
+                "timespan": "7days",
             }
-            resp = httpx.get(GDELT_API, params=params, timeout=15)
-            data = resp.json()
+            resp = httpx.get(
+                GDELT_API,
+                params=params,
+                headers={"Accept": "application/json"},
+                timeout=20,
+            )
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
             articles = data.get("articles", [])
             results = []
             for art in articles:
