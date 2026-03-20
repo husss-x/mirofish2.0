@@ -2318,13 +2318,13 @@ def interview_agents_batch():
         if not simulation_id:
             return jsonify({
                 "success": False,
-                "error": "请提供 simulation_id"
+                "error": "Please provide simulation_id"
             }), 400
 
         if not interviews or not isinstance(interviews, list):
             return jsonify({
                 "success": False,
-                "error": "请提供 interviews（采访列表）"
+                "error": "Please provide interviews (interview list)"
             }), 400
 
         # 验证platform参数
