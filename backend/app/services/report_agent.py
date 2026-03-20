@@ -1573,22 +1573,22 @@ class ReportAgent:
             created_at=datetime.now().isoformat()
         )
         
-        # 已完成的章节标题列表（用于进度追踪）
+        # List of completed section titles (for progress tracking)
         completed_section_titles = []
-        
+
         try:
-            # 初始化：创建报告文件夹并保存初始状态
+            # Initialize: create report folder and save initial state
             ReportManager._ensure_report_folder(report_id)
-            
-            # 初始化日志记录器（结构化日志 agent_log.jsonl）
+
+            # Initialize the structured logger (agent_log.jsonl)
             self.report_logger = ReportLogger(report_id)
             self.report_logger.log_start(
                 simulation_id=self.simulation_id,
                 graph_id=self.graph_id,
                 simulation_requirement=self.simulation_requirement
             )
-            
-            # 初始化控制台日志记录器（console_log.txt）
+
+            # Initialize the console logger (console_log.txt)
             self.console_logger = ReportConsoleLogger(report_id)
             
             ReportManager.update_progress(
@@ -1597,14 +1597,14 @@ class ReportAgent:
             )
             ReportManager.save_report(report)
             
-            # 阶段1: 规划大纲
+            # Phase 1: Plan outline
             report.status = ReportStatus.PLANNING
             ReportManager.update_progress(
                 report_id, "planning", 5, "Starting report outline planning...",
                 completed_sections=[]
             )
-            
-            # 记录规划开始日志
+
+            # Record planning start log
             self.report_logger.log_planning_start()
             
             if progress_callback:
@@ -1616,10 +1616,10 @@ class ReportAgent:
             )
             report.outline = outline
             
-            # 记录规划完成日志
+            # Record planning complete log
             self.report_logger.log_planning_complete(outline.to_dict())
-            
-            # 保存大纲到文件
+
+            # Save outline to file
             ReportManager.save_outline(report_id, outline)
             ReportManager.update_progress(
                 report_id, "planning", 15, f"Outline planning complete, {len(outline.sections)} sections",
