@@ -372,7 +372,7 @@
             </div>
           </div>
 
-          <!-- 下一步按钮 -->
+          <!-- Next step button -->
           <div class="next-step-section" v-if="currentPhase >= 2">
             <button class="next-step-btn" @click="goToNextStep" :disabled="currentPhase < 2">
               Go to Env Setup
@@ -381,7 +381,7 @@
           </div>
         </div>
 
-        <!-- 项目信息面板 -->
+        <!-- Project info panel -->
         <div class="project-panel">
           <div class="project-header">
             <span class="project-icon">◇</span>
@@ -421,29 +421,29 @@ import * as d3 from 'd3'
 const route = useRoute()
 const router = useRouter()
 
-// 当前项目ID（可能从'new'变为实际ID）
+// Current project ID (may change from 'new' to actual ID)
 const currentProjectId = ref(route.params.projectId)
 
-// 状态
+// State
 const loading = ref(true)
 const graphLoading = ref(false)
 const error = ref('')
 const projectData = ref(null)
 const graphData = ref(null)
 const buildProgress = ref(null)
-const ontologyProgress = ref(null) // 本体生成进度
-const currentPhase = ref(-1) // -1: 上传中, 0: 本体生成中, 1: 图谱构建, 2: 完成
-const selectedItem = ref(null) // 选中的节点或边
+const ontologyProgress = ref(null) // Ontology generation progress
+const currentPhase = ref(-1) // -1: uploading, 0: ontology generating, 1: graph building, 2: complete
+const selectedItem = ref(null) // Currently selected node or edge
 const isFullScreen = ref(false)
 
-// DOM引用
+// DOM references
 const graphContainer = ref(null)
 const graphSvg = ref(null)
 
-// 轮询定时器
+// Polling timer
 let pollTimer = null
 
-// 计算属性
+// Computed properties
 const statusClass = computed(() => {
   if (error.value) return 'error'
   if (currentPhase.value >= 2) return 'completed'
@@ -475,13 +475,13 @@ const entityTypes = computed(() => {
   return Object.values(typeMap)
 })
 
-// 方法
+// Methods
 const goHome = () => {
   router.push('/')
 }
 
 const goToNextStep = () => {
-  // TODO: 进入环境搭建步骤
+  // TODO: Enter the environment setup step
   alert('Env Setup feature coming soon...')
 }
 
@@ -493,12 +493,12 @@ const toggleFullScreen = () => {
   }, 350) 
 }
 
-// 关闭详情面板
+// Close detail panel
 const closeDetailPanel = () => {
   selectedItem.value = null
 }
 
-// 格式化日期
+// Format date
 const formatDate = (dateStr) => {
   if (!dateStr) return '-'
   try {
@@ -515,7 +515,7 @@ const formatDate = (dateStr) => {
   }
 }
 
-// 选中节点
+// Select node
 const selectNode = (nodeData, color) => {
   selectedItem.value = {
     type: 'node',
@@ -525,7 +525,7 @@ const selectNode = (nodeData, color) => {
   }
 }
 
-// 选中边
+// Select edge
 const selectEdge = (edgeData) => {
   selectedItem.value = {
     type: 'edge',
@@ -550,7 +550,7 @@ const getPhaseStatusText = (phase) => {
   return 'Waiting'
 }
 
-// 初始化 - 处理新建项目或加载已有项目
+// Initialize - handle new project creation or loading an existing project
 const initProject = async () => {
   const paramProjectId = route.params.projectId
   

@@ -1964,7 +1964,7 @@ onUnmounted(() => {
   border-left: 3px solid #E0E0E0;
 }
 
-/* 话题标签 */
+/* Topic tags */
 .topics-grid {
   display: flex;
   flex-wrap: wrap;
@@ -1986,7 +1986,7 @@ onUnmounted(() => {
   color: #0D47A1;
 }
 
-/* 详细人设 */
+/* Detailed persona */
 .persona-dimensions {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2272,7 +2272,7 @@ onUnmounted(() => {
   margin: 0;
 }
 
-/* 模拟轮数配置样式 */
+/* Simulation rounds config styles */
 .rounds-config-section {
   margin: 24px 0;
   padding-top: 24px;
