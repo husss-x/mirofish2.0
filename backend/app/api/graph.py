@@ -265,8 +265,8 @@ def build_graph():
         {
             "project_id": "proj_xxxx",  // 必填，来自接口1
             "graph_name": "图谱名称",    // 可选
-            "chunk_size": 500,          // 可选，默认500
-            "chunk_overlap": 50         // 可选，默认50
+            "chunk_size": 1500,         // 可选，默认1500
+            "chunk_overlap": 200        // 可选，默认200
         }
         
     返回：
@@ -435,7 +435,7 @@ def build_graph():
                 episode_uuids = builder.add_text_batches(
                     graph_id, 
                     chunks,
-                    batch_size=3,
+                    batch_size=5,
                     progress_callback=add_progress_callback
                 )
                 
