@@ -482,7 +482,7 @@ const goHome = () => {
 
 const goToNextStep = () => {
   // TODO: 进入环境搭建步骤
-  alert('Env Setup feature is under development...')
+  alert('Env Setup feature coming soon...')
 }
 
 const toggleFullScreen = () => {
