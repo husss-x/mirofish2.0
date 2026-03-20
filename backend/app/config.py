@@ -1,6 +1,6 @@
 """
-配置管理
-统一从项目根目录的 .env 文件加载配置
+Configuration management
+Loads configuration uniformly from the .env file in the project root directory
 """
 
 import os

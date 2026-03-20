@@ -1,12 +1,12 @@
 """
-MiroFish Backend - Flask应用工厂
+MiroFish Backend - Flask Application Factory
 """
 
 import os
 import warnings
 
-# 抑制 multiprocessing resource_tracker 的警告（来自第三方库如 transformers）
-# 需要在所有其他导入之前设置
+# Suppress multiprocessing resource_tracker warnings (from third-party libraries such as transformers)
+# Must be set before all other imports
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
 from flask import Flask, request
@@ -17,12 +17,12 @@ from .utils.logger import setup_logger, get_logger
 
 
 def create_app(config_class=Config):
-    """Flask应用工厂函数"""
+    """Flask application factory function"""
     app = Flask(__name__)
     app.config.from_object(config_class)
     
-    # 设置JSON编码：确保中文直接显示（而不是 \uXXXX 格式）
-    # Flask >= 2.3 使用 app.json.ensure_ascii，旧版本使用 JSON_AS_ASCII 配置
+    # Configure JSON encoding: ensure non-ASCII characters are output directly (not as \uXXXX)
+    # Flask >= 2.3 uses app.json.ensure_ascii; older versions use the JSON_AS_ASCII config
     if hasattr(app, 'json') and hasattr(app.json, 'ensure_ascii'):
         app.json.ensure_ascii = False
     
