@@ -1149,7 +1149,7 @@ class SimulationRunner:
                     os.remove(file_path)
                     cleaned_files.append(filename)
                 except Exception as e:
-                    errors.append(f"删除 {filename} 失败: {str(e)}")
+                    errors.append(f"Failed to delete {filename}: {str(e)}")
         
         # 清理平台目录中的动作日志
         for dir_name in dirs_to_clean:
@@ -1161,13 +1161,13 @@ class SimulationRunner:
                         os.remove(actions_file)
                         cleaned_files.append(f"{dir_name}/actions.jsonl")
                     except Exception as e:
-                        errors.append(f"删除 {dir_name}/actions.jsonl 失败: {str(e)}")
+                        errors.append(f"Failed to delete {dir_name}/actions.jsonl: {str(e)}")
         
         # 清理内存中的运行状态
         if simulation_id in cls._run_states:
             del cls._run_states[simulation_id]
         
-        logger.info(f"清理模拟日志完成: {simulation_id}, 删除文件: {cleaned_files}")
+        logger.info(f"Simulation log cleanup complete: {simulation_id}, deleted files: {cleaned_files}")
         
         return {
             "success": len(errors) == 0,
@@ -1197,13 +1197,13 @@ class SimulationRunner:
         if not has_processes and not has_updaters:
             return  # 没有需要清理的内容，静默返回
         
-        logger.info("正在清理所有模拟进程...")
+        logger.info("Cleaning up all simulation processes...")
         
         # 首先停止所有图谱记忆更新器（stop_all 内部会打印日志）
         try:
             ZepGraphMemoryManager.stop_all()
         except Exception as e:
-            logger.error(f"停止图谱记忆更新器失败: {e}")
+            logger.error(f"Failed to stop graph memory updaters: {e}")
         cls._graph_memory_enabled.clear()
         
         # 复制字典以避免在迭代时修改
@@ -1212,7 +1212,7 @@ class SimulationRunner:
         for simulation_id, process in processes:
             try:
                 if process.poll() is None:  # 进程仍在运行
-                    logger.info(f"终止模拟进程: {simulation_id}, pid={process.pid}")
+                    logger.info(f"Terminating simulation process: {simulation_id}, pid={process.pid}")
                     
                     try:
                         # 使用跨平台的进程终止方法
@@ -1232,14 +1232,14 @@ class SimulationRunner:
                         state.twitter_running = False
                         state.reddit_running = False
                         state.completed_at = datetime.now().isoformat()
-                        state.error = "服务器关闭，模拟被终止"
+                        state.error = "Server shutdown, simulation was terminated"
                         cls._save_run_state(state)
                     
                     # 同时更新 state.json，将状态设为 stopped
                     try:
                         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
                         state_file = os.path.join(sim_dir, "state.json")
-                        logger.info(f"尝试更新 state.json: {state_file}")
+                        logger.info(f"Attempting to update state.json: {state_file}")
                         if os.path.exists(state_file):
                             with open(state_file, 'r', encoding='utf-8') as f:
                                 state_data = json.load(f)
