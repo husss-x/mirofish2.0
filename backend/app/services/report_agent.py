@@ -1,12 +1,12 @@
 """
-Report Agent服务
-使用LangChain + Zep实现ReACT模式的模拟报告生成
+Report Agent Service
+Implements ReACT pattern simulation report generation using LangChain + Zep
 
-功能：
-1. 根据模拟需求和Zep图谱信息生成报告
-2. 先规划目录结构，然后分段生成
-3. 每段采用ReACT多轮思考与反思模式
-4. 支持与用户对话，在对话中自主调用检索工具
+Features:
+1. Generate reports based on simulation requirements and Zep graph data
+2. Plan outline structure first, then generate content section by section
+3. Each section uses ReACT multi-round reasoning and reflection
+4. Supports user conversation with autonomous retrieval tool invocation
 """
 
 import os
@@ -34,18 +34,18 @@ logger = get_logger('mirofish.report_agent')
 
 class ReportLogger:
     """
-    Report Agent 详细日志记录器
-    
-    在报告文件夹中生成 agent_log.jsonl 文件，记录每一步详细动作。
-    每行是一个完整的 JSON 对象，包含时间戳、动作类型、详细内容等。
+    Report Agent detailed logger
+
+    Generates an agent_log.jsonl file in the report folder, recording each step in detail.
+    Each line is a complete JSON object containing timestamp, action type, detailed content, etc.
     """
-    
+
     def __init__(self, report_id: str):
         """
-        初始化日志记录器
-        
+        Initialize the logger
+
         Args:
-            report_id: 报告ID，用于确定日志文件路径
+            report_id: Report ID, used to determine the log file path
         """
         self.report_id = report_id
         self.log_file_path = os.path.join(
@@ -55,31 +55,31 @@ class ReportLogger:
         self._ensure_log_file()
     
     def _ensure_log_file(self):
-        """确保日志文件所在目录存在"""
+        """Ensure the log file directory exists"""
         log_dir = os.path.dirname(self.log_file_path)
         os.makedirs(log_dir, exist_ok=True)
-    
+
     def _get_elapsed_time(self) -> float:
-        """获取从开始到现在的耗时（秒）"""
+        """Get elapsed time in seconds since start"""
         return (datetime.now() - self.start_time).total_seconds()
-    
+
     def log(
-        self, 
-        action: str, 
+        self,
+        action: str,
         stage: str,
         details: Dict[str, Any],
         section_title: str = None,
         section_index: int = None
     ):
         """
-        记录一条日志
-        
+        Record a log entry
+
         Args:
-            action: 动作类型，如 'start', 'tool_call', 'llm_response', 'section_complete' 等
-            stage: 当前阶段，如 'planning', 'generating', 'completed'
-            details: 详细内容字典，不截断
-            section_title: 当前章节标题（可选）
-            section_index: 当前章节索引（可选）
+            action: Action type, e.g. 'start', 'tool_call', 'llm_response', 'section_complete'
+            stage: Current stage, e.g. 'planning', 'generating', 'completed'
+            details: Detailed content dict, not truncated
+            section_title: Current section title (optional)
+            section_index: Current section index (optional)
         """
         log_entry = {
             "timestamp": datetime.now().isoformat(),

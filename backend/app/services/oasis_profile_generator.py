@@ -1,11 +1,11 @@
 """
-OASIS Agent Profile生成器
-将Zep图谱中的实体转换为OASIS模拟平台所需的Agent Profile格式
+OASIS Agent Profile Generator
+Converts entities from the Zep knowledge graph into the Agent Profile format required by the OASIS simulation platform
 
-优化改进：
-1. 调用Zep检索功能二次丰富节点信息
-2. 优化提示词生成非常详细的人设
-3. 区分个人实体和抽象群体实体
+Optimizations:
+1. Calls Zep retrieval to further enrich node information
+2. Optimizes prompts to generate highly detailed personas
+3. Distinguishes between individual entities and abstract group entities
 """
 
 import json
@@ -670,7 +670,7 @@ class OasisProfileGenerator:
     
     def _get_system_prompt(self, is_individual: bool) -> str:
         """获取系统提示词"""
-        base_prompt = "你是社交媒体用户画像生成专家。生成详细、真实的人设用于舆论模拟,最大程度还原已有现实情况。必须返回有效的JSON格式，所有字符串值不能包含未转义的换行符。使用中文。"
+        base_prompt = "You are an expert in generating social media user profiles. Generate detailed, realistic personas for public opinion simulation that faithfully reproduce existing real-world conditions. You must return valid JSON format; all string values must not contain unescaped newline characters."
         return base_prompt
     
     def _build_individual_persona_prompt(
@@ -686,40 +686,39 @@ class OasisProfileGenerator:
         attrs_str = json.dumps(entity_attributes, ensure_ascii=False) if entity_attributes else "无"
         context_str = context[:3000] if context else "无额外上下文"
         
-        return f"""为实体生成详细的社交媒体用户人设,最大程度还原已有现实情况。
+        return f"""Generate a detailed social media user persona for the following entity, faithfully reproducing existing real-world conditions.
 
-实体名称: {entity_name}
-实体类型: {entity_type}
-实体摘要: {entity_summary}
-实体属性: {attrs_str}
+Entity Name: {entity_name}
+Entity Type: {entity_type}
+Entity Summary: {entity_summary}
+Entity Attributes: {attrs_str}
 
-上下文信息:
+Context Information:
 {context_str}
 
-请生成JSON，包含以下字段:
+Please generate JSON with the following fields:
 
-1. bio: 社交媒体简介，200字
-2. persona: 详细人设描述（2000字的纯文本），需包含:
-   - 基本信息（年龄、职业、教育背景、所在地）
-   - 人物背景（重要经历、与事件的关联、社会关系）
-   - 性格特征（MBTI类型、核心性格、情绪表达方式）
-   - 社交媒体行为（发帖频率、内容偏好、互动风格、语言特点）
-   - 立场观点（对话题的态度、可能被激怒/感动的内容）
-   - 独特特征（口头禅、特殊经历、个人爱好）
-   - 个人记忆（人设的重要部分，要介绍这个个体与事件的关联，以及这个个体在事件中的已有动作与反应）
-3. age: 年龄数字（必须是整数）
-4. gender: 性别，必须是英文: "male" 或 "female"
-5. mbti: MBTI类型（如INTJ、ENFP等）
-6. country: 国家（使用中文，如"中国"）
-7. profession: 职业
-8. interested_topics: 感兴趣话题数组
+1. bio: Social media bio, 200 words
+2. persona: Detailed persona description (2000 words of plain text), including:
+   - Basic information (age, occupation, educational background, location)
+   - Background (significant experiences, connection to events, social relationships)
+   - Personality traits (MBTI type, core character, emotional expression style)
+   - Social media behavior (posting frequency, content preferences, interaction style, language characteristics)
+   - Stance and opinions (attitude toward topics, content that might provoke or move them)
+   - Unique traits (catchphrases, special experiences, personal hobbies)
+   - Personal memory (an important part of the persona: describe this individual's connection to events and their existing actions and reactions within those events)
+3. age: Age as a number (must be an integer)
+4. gender: Gender, must be in English: "male" or "female"
+5. mbti: MBTI type (e.g. INTJ, ENFP)
+6. country: Country name (e.g. "China")
+7. profession: Occupation
+8. interested_topics: Array of topics of interest
 
-重要:
-- 所有字段值必须是字符串或数字，不要使用换行符
-- persona必须是一段连贯的文字描述
-- 使用中文（除了gender字段必须用英文male/female）
-- 内容要与实体信息保持一致
-- age必须是有效的整数，gender必须是"male"或"female"
+Important:
+- All field values must be strings or numbers; do not use newline characters
+- persona must be a single coherent text description
+- age must be a valid integer; gender must be "male" or "female"
+- Content must be consistent with the entity information
 """
 
     def _build_group_persona_prompt(
