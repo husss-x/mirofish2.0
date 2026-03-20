@@ -574,7 +574,7 @@ class OasisProfileGenerator:
                 import time
                 time.sleep(1 * (attempt + 1))  # 指数退避
         
-        logger.warning(f"LLM生成人设失败（{max_attempts}次尝试）: {last_error}, 使用规则生成")
+        logger.warning(f"LLM persona generation failed ({max_attempts} attempts): {last_error}, falling back to rule-based generation")
         return self._generate_profile_rule_based(
             entity_name, entity_type, entity_summary, entity_attributes
         )
@@ -654,7 +654,7 @@ class OasisProfileGenerator:
         
         # 如果提取到了有意义的内容，标记为已修复
         if bio_match or persona_match:
-            logger.info(f"从损坏的JSON中提取了部分信息")
+            logger.info(f"Extracted partial information from malformed JSON")
             return {
                 "bio": bio,
                 "persona": persona,
@@ -662,7 +662,7 @@ class OasisProfileGenerator:
             }
         
         # 7. 完全失败，返回基础结构
-        logger.warning(f"JSON修复失败，返回基础结构")
+        logger.warning(f"JSON repair failed, returning base structure")
         return {
             "bio": entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}",
             "persona": entity_summary or f"{entity_name}是一个{entity_type}。"

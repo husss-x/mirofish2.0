@@ -442,7 +442,7 @@ def build_graph():
                 # 等待Zep处理完成（查询每个episode的processed状态）
                 task_manager.update_task(
                     task_id,
-                    message="等待Zep处理数据...",
+                    message="Waiting for Zep to process data...",
                     progress=55
                 )
                 
@@ -459,7 +459,7 @@ def build_graph():
                 # 获取图谱数据
                 task_manager.update_task(
                     task_id,
-                    message="获取图谱数据...",
+                    message="Fetching graph data...",
                     progress=95
                 )
                 graph_data = builder.get_graph_data(graph_id)
@@ -470,13 +470,13 @@ def build_graph():
                 
                 node_count = graph_data.get("node_count", 0)
                 edge_count = graph_data.get("edge_count", 0)
-                build_logger.info(f"[{task_id}] 图谱构建完成: graph_id={graph_id}, 节点={node_count}, 边={edge_count}")
+                build_logger.info(f"[{task_id}] Graph build complete: graph_id={graph_id}, nodes={node_count}, edges={edge_count}")
                 
                 # 完成
                 task_manager.update_task(
                     task_id,
                     status=TaskStatus.COMPLETED,
-                    message="图谱构建完成",
+                    message="Graph build complete",
                     progress=100,
                     result={
                         "project_id": project_id,
@@ -489,7 +489,7 @@ def build_graph():
                 
             except Exception as e:
                 # 更新项目状态为失败
-                build_logger.error(f"[{task_id}] 图谱构建失败: {str(e)}")
+                build_logger.error(f"[{task_id}] Graph build failed: {str(e)}")
                 build_logger.debug(traceback.format_exc())
                 
                 project.status = ProjectStatus.FAILED
