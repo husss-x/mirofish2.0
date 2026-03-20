@@ -913,7 +913,7 @@ class OasisProfileGenerator:
                                 writer.writeheader()
                                 writer.writerows(profiles_data)
                 except Exception as e:
-                    logger.warning(f"实时保存 profiles 失败: {e}")
+                    logger.warning(f"Failed to save profiles in real time: {e}")
         
         def generate_single_profile(idx: int, entity: EntityNode) -> tuple:
             """生成单个profile的工作函数"""
@@ -1013,24 +1013,24 @@ class OasisProfileGenerator:
         separator = "-" * 70
         
         # 构建完整输出内容（不截断）
-        topics_str = ', '.join(profile.interested_topics) if profile.interested_topics else '无'
-        
+        topics_str = ', '.join(profile.interested_topics) if profile.interested_topics else 'None'
+
         output_lines = [
             f"\n{separator}",
-            f"[已生成] {entity_name} ({entity_type})",
+            f"[Generated] {entity_name} ({entity_type})",
             f"{separator}",
-            f"用户名: {profile.user_name}",
+            f"Username: {profile.user_name}",
             f"",
-            f"【简介】",
+            f"[Bio]",
             f"{profile.bio}",
             f"",
-            f"【详细人设】",
+            f"[Detailed Persona]",
             f"{profile.persona}",
             f"",
-            f"【基本属性】",
-            f"年龄: {profile.age} | 性别: {profile.gender} | MBTI: {profile.mbti}",
-            f"职业: {profile.profession} | 国家: {profile.country}",
-            f"兴趣话题: {topics_str}",
+            f"[Basic Attributes]",
+            f"Age: {profile.age} | Gender: {profile.gender} | MBTI: {profile.mbti}",
+            f"Profession: {profile.profession} | Country: {profile.country}",
+            f"Interested Topics: {topics_str}",
             separator
         ]
         
@@ -1111,7 +1111,7 @@ class OasisProfileGenerator:
                 ]
                 writer.writerow(row)
         
-        logger.info(f"已保存 {len(profiles)} 个Twitter Profile到 {file_path} (OASIS CSV格式)")
+        logger.info(f"Saved {len(profiles)} Twitter profiles to {file_path} (OASIS CSV format)")
     
     def _normalize_gender(self, gender: Optional[str]) -> str:
         """
@@ -1185,7 +1185,7 @@ class OasisProfileGenerator:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         
-        logger.info(f"已保存 {len(profiles)} 个Reddit Profile到 {file_path} (JSON格式，包含user_id字段)")
+        logger.info(f"Saved {len(profiles)} Reddit profiles to {file_path} (JSON format, includes user_id field)")
     
     # 保留旧方法名作为别名，保持向后兼容
     def save_profiles_to_json(
@@ -1195,6 +1195,6 @@ class OasisProfileGenerator:
         platform: str = "reddit"
     ):
         """[已废弃] 请使用 save_profiles() 方法"""
-        logger.warning("save_profiles_to_json已废弃，请使用save_profiles方法")
+        logger.warning("save_profiles_to_json is deprecated, please use save_profiles instead")
         self.save_profiles(profiles, file_path, platform)
 

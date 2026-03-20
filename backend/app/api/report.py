@@ -65,9 +65,9 @@ def generate_report():
         if not state:
             return jsonify({
                 "success": False,
-                "error": f"模拟不存在: {simulation_id}"
+                "error": f"Simulation not found: {simulation_id}"
             }), 404
-        
+
         # 检查是否已有报告
         if not force_regenerate:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
@@ -78,7 +78,7 @@ def generate_report():
                         "simulation_id": simulation_id,
                         "report_id": existing_report.report_id,
                         "status": "completed",
-                        "message": "报告已存在",
+                        "message": "Report already exists",
                         "already_generated": True
                     }
                 })
@@ -88,21 +88,21 @@ def generate_report():
         if not project:
             return jsonify({
                 "success": False,
-                "error": f"项目不存在: {state.project_id}"
+                "error": f"Project not found: {state.project_id}"
             }), 404
-        
+
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
             return jsonify({
                 "success": False,
-                "error": "缺少图谱ID，请确保已构建图谱"
+                "error": "Missing graph ID, please ensure the graph has been built"
             }), 400
-        
+
         simulation_requirement = project.simulation_requirement
         if not simulation_requirement:
             return jsonify({
                 "success": False,
-                "error": "缺少模拟需求描述"
+                "error": "Missing simulation requirement description"
             }), 400
         
         # 提前生成 report_id，以便立即返回给前端
@@ -127,7 +127,7 @@ def generate_report():
                     task_id,
                     status=TaskStatus.PROCESSING,
                     progress=0,
-                    message="初始化Report Agent..."
+                    message="Initializing Report Agent..."
                 )
                 
                 # 创建Report Agent
@@ -164,10 +164,10 @@ def generate_report():
                         }
                     )
                 else:
-                    task_manager.fail_task(task_id, report.error or "报告生成失败")
+                    task_manager.fail_task(task_id, report.error or "Report generation failed")
                 
             except Exception as e:
-                logger.error(f"报告生成失败: {str(e)}")
+                logger.error(f"Report generation failed: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
         
         # 启动后台线程
@@ -181,13 +181,13 @@ def generate_report():
                 "report_id": report_id,
                 "task_id": task_id,
                 "status": "generating",
-                "message": "报告生成任务已启动，请通过 /api/report/generate/status 查询进度",
+                "message": "Report generation task started, check progress via /api/report/generate/status",
                 "already_generated": False
             }
         })
         
     except Exception as e:
-        logger.error(f"启动报告生成任务失败: {str(e)}")
+        logger.error(f"Failed to start report generation task: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
