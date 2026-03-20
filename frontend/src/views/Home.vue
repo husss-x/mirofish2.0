@@ -179,14 +179,14 @@
             <!-- Web research query (shown for web_only and hybrid) -->
             <div class="console-section" v-if="seedMode !== 'upload_only'">
               <div class="console-header">
-                <span class="console-label">01 / Research Query</span>
+                <span class="console-label">01 / Research topic</span>
                 <span class="console-meta">Natural language topic or question</span>
               </div>
               <div class="input-wrapper">
                 <textarea
                   v-model="seedQuery"
                   class="code-input"
-                  placeholder="// e.g. US-China trade tensions 2025 — tariffs, tech restrictions, economic impact"
+                  placeholder="// e.g. Iran conflict — military situation, key actors, sanctions, proxy forces, nuclear program"
                   rows="3"
                   :disabled="loading"
                 ></textarea>
@@ -206,13 +206,13 @@
             <!-- Input area -->
             <div class="console-section">
               <div class="console-header">
-                <span class="console-label">>_ 02 / Simulation prompt</span>
+                <span class="console-label">02 / Prediction question</span>
               </div>
               <div class="input-wrapper">
                 <textarea
                   v-model="formData.simulationRequirement"
                   class="code-input"
-                  placeholder="// Describe your simulation or prediction goal in natural language (e.g. If the university issues a notice revoking a disciplinary action, what public opinion trends would emerge?)"
+                  placeholder="// e.g. How will the conflict evolve in the next 3 months? Will it escalate to direct confrontation?"
                   rows="6"
                   :disabled="loading"
                 ></textarea>
