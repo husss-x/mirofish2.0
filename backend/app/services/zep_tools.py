@@ -908,20 +908,20 @@ class ZepToolsService:
         """
         logger.info(f"Getting simulation context: {simulation_requirement[:50]}...")
         
-        # 搜索与模拟需求相关的信息
+        # Search for information related to the simulation requirement
         search_result = self.search_graph(
             graph_id=graph_id,
             query=simulation_requirement,
             limit=limit
         )
-        
-        # 获取图谱统计
+
+        # Get graph statistics
         stats = self.get_graph_statistics(graph_id)
-        
-        # 获取所有实体节点
+
+        # Get all entity nodes
         all_nodes = self.get_all_nodes(graph_id)
-        
-        # 筛选有实际类型的实体（非纯Entity节点）
+
+        # Filter for entities with a meaningful type (non-pure Entity nodes)
         entities = []
         for node in all_nodes:
             custom_labels = [l for l in node.labels if l not in ["Entity", "Node"]]
@@ -931,16 +931,16 @@ class ZepToolsService:
                     "type": custom_labels[0],
                     "summary": node.summary
                 })
-        
+
         return {
             "simulation_requirement": simulation_requirement,
             "related_facts": search_result.facts,
             "graph_statistics": stats,
-            "entities": entities[:limit],  # 限制数量
+            "entities": entities[:limit],  # limit count
             "total_entities": len(entities)
         }
     
-    # ========== 核心检索工具（优化后） ==========
+    # ========== Core retrieval tools (optimized) ==========
     
     def insight_forge(
         self,
