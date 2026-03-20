@@ -379,6 +379,10 @@ class SeedAgent:
         raw_results: list[dict],
     ) -> str:
         """Merge uploaded document with fresh web research."""
+        logger.info(
+            f"[SeedAgent] hybrid: file_text={len(file_text)} chars, "
+            f"sending first {min(len(file_text), 12000)} to LLM"
+        )
         sources_text = self._format_sources(raw_results)
         return self.llm.chat([
             {
@@ -400,7 +404,7 @@ class SeedAgent:
                 "content": (
                     f"Prediction query: {query}\n"
                     f"Simulation requirement: {simulation_requirement}\n\n"
-                    f"--- UPLOADED DOCUMENT ---\n{file_text[:4000]}\n\n"
+                    f"--- UPLOADED DOCUMENT ---\n{file_text[:12000]}\n\n"
                     f"--- WEB SOURCES ---\n{sources_text}"
                 ),
             },
@@ -411,6 +415,6 @@ class SeedAgent:
         for i, r in enumerate(results, 1):
             parts.append(
                 f"[{i}] {r.get('title','')} ({r.get('source','')}) "
-                f"— {r.get('url','')}\n{r.get('content','')[:800]}"
+                f"— {r.get('url','')}\n{r.get('content','')[:1500]}"
             )
         return "\n\n".join(parts)
