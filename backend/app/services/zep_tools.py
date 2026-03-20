@@ -1483,7 +1483,7 @@ Return a JSON-formatted list of sub-questions."""
     
     @staticmethod
     def _clean_tool_call_response(response: str) -> str:
-        """清理 Agent 回复中的 JSON 工具调用包裹，提取实际内容"""
+        """Strip the JSON tool-call wrapper from an agent reply and extract the actual content"""
         if not response or not response.strip().startswith('{'):
             return response
         text = response.strip()
@@ -1503,11 +1503,11 @@ Return a JSON-formatted list of sub-questions."""
         return response
 
     def _load_agent_profiles(self, simulation_id: str) -> List[Dict[str, Any]]:
-        """加载模拟的Agent人设文件"""
+        """Load the agent persona files for the simulation"""
         import os
         import csv
-        
-        # 构建人设文件路径
+
+        # Build the persona file path
         sim_dir = os.path.join(
             os.path.dirname(__file__), 
             f'../../uploads/simulations/{simulation_id}'
