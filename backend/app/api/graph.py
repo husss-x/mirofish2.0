@@ -605,6 +605,7 @@ def seed_extract_text():
             tmp_path = tmp.name
         text = FileParser.extract_text(tmp_path)
         os.unlink(tmp_path)
+        logger.info(f"[seed/extract-text] extracted {len(text)} chars from {file.filename}")
         return jsonify({"text": text, "length": len(text)})
     except Exception as e:
         logger.error(f"[seed/extract-text] {e}")
@@ -636,8 +637,10 @@ def seed_and_generate_ontology():
             if not file_text:
                 return jsonify({"error": "file_text required for hybrid mode"}), 400
             result = agent.run_hybrid(file_text, query, simulation_requirement)
+            logger.info(f"[seed] result.markdown={len(result.markdown)} chars, sources={len(result.sources)}")
         else:
             result = agent.run_web_only(query, simulation_requirement)
+            logger.info(f"[seed] result.markdown={len(result.markdown)} chars, sources={len(result.sources)}")
 
         # From here, identical to existing /ontology/generate flow
         project = ProjectManager.create_project(name=project_name)
